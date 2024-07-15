@@ -1,0 +1,6 @@
+person
+car
+face
+tricycle
+electric
+bicycle

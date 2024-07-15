@@ -1,0 +1,5 @@
+.vscode
+test*
+ai_server/stream*
+ai_server/tmp
+ai_server/deepstream.log
