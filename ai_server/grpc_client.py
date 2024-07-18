@@ -1,24 +1,31 @@
+# import grpc
+# import time
+# from concurrent import futures
+# import proto.task_pb2 as task_pb2
+# import proto.global_pb2 as global_pb2
+# from proto.task_pb2_grpc import (
+#     TaskServiceStub,
+#     add_TaskServiceServicer_to_server,
+# )
+
+# from google.protobuf import empty_pb2
+
 import grpc
 import time
-from concurrent import futures
-import proto.task_pb2 as task_pb2
-import proto.global_pb2 as global_pb2
-from proto.task_pb2_grpc import (
-    TaskServiceStub,
-    add_TaskServiceServicer_to_server,
-)
+from proto.alg_core.core_pb2 import EnableChannelReq, DisableChannelReq
+from proto.alg_core.core_pb2_grpc import CoreServiceStub
 from google.protobuf import empty_pb2
 
 MAX_MESSAGE_LENGTH = 256*1024*1024  # 可根据具体需求设置，此处设为256M
 
 def create_channel():
-    return grpc.insecure_channel(target="127.0.0.1:50151", 
+    return grpc.insecure_channel(target="127.0.0.1:50051", 
                                 #  options=[  ('grpc.max_send_message_length', MAX_MESSAGE_LENGTH),
                                 #             ('grpc.max_receive_message_length', MAX_MESSAGE_LENGTH),]
                                 )
 
 # 创建客户端
-stub = TaskServiceStub(create_channel())
+stub = CoreServiceStub(create_channel())
 
 names_9_floor = [
         "销售部",
@@ -54,12 +61,16 @@ url_12_floor = [
     "rtsp://admin:avcit12345678@192.168.19.100/ch41/main/av_stream",
 ]
 
+aomen = [
+    "rtsp://192.168.31.121:8554/test",
+]
+
 
 
 # 调用enable接口
 # for i in range(len([1])):
-for index, url in enumerate(url_12_floor+url_9_floor):
-    if index > 7:
+for index, url in enumerate(url_12_floor + url_9_floor):
+    if index > 3:
         break
     # counter_vehicle_alg = task_pb2.CollectAlg(channel = task_pb2.Channel(id=i, name="笑哈哈"+str(i), url="rtsp://admin:avcit12345678@192.168.1.8" + str(i) + "/h265/ch1/main/av_stream"))
     # counter_vehicle_alg = task_pb2.CollectAlg(channel = task_pb2.Channel(id=i, name="笑哈哈"+str(i), url="rtsp://admin:avcit12345678@192.168.19.100/ch40/main/av_stream"))
@@ -77,13 +88,13 @@ for index, url in enumerate(url_12_floor+url_9_floor):
     # area.points.append(global_pb2.Point(x=10, y=20))
     # counter_vehicle_alg.areas.append(area)
 
-    counter_vehicle_alg = task_pb2.CollectAlg(channel = task_pb2.Channel(id=index, name="笑哈哈"+str(index), url=url))
+    counter_vehicle_alg = EnableChannelReq(channel_id=index, channel_name="穷哈哈", channel_url=url,)
 
 
-    resp_enable = stub.Enable(task_pb2.AlgConfig(collect_alg=counter_vehicle_alg))
-    time.sleep(1)
+    resp_enable = stub.EnableChannel(counter_vehicle_alg)
     print(url)
     print(resp_enable)
+    time.sleep(1)
 
 
 # resp_enable = stub.Disable(
