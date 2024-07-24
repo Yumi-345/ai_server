@@ -12,28 +12,27 @@
 
 import grpc
 import time
-from proto.alg_core.core_pb2 import EnableChannelReq, DisableChannelReq
+from proto.alg_core.core_pb2 import (
+    EnableChannelReq,
+    DisableChannelReq,
+    AddTaskReq,
+    RemoveTaskReq,
+    BindChanTaskReq,
+    UnbindChanTaskReq,
+    Event,
+)
 from proto.alg_core.core_pb2_grpc import CoreServiceStub
 from google.protobuf import empty_pb2
 
 MAX_MESSAGE_LENGTH = 256*1024*1024  # 可根据具体需求设置，此处设为256M
 
 def create_channel():
-    return grpc.insecure_channel(target="127.0.0.1:50051", 
-                                #  options=[  ('grpc.max_send_message_length', MAX_MESSAGE_LENGTH),
-                                #             ('grpc.max_receive_message_length', MAX_MESSAGE_LENGTH),]
-                                )
+    return grpc.insecure_channel(target="127.0.0.1:50051")
 
 # 创建客户端
 stub = CoreServiceStub(create_channel())
 
-names_9_floor = [
-        "销售部",
-        "技术部",
-        "茶水区",
-        "售前部",
-        "右展厅",
-    ]
+
 
 url_9_floor = [
         "rtsp://admin:avcit12345678@192.168.19.100/ch39/main/av_stream",
@@ -42,15 +41,6 @@ url_9_floor = [
         # "rtsp://admin:avcit12345678@192.168.19.100/ch35/main/av_stream",
         # "rtsp://admin:avcit12345678@192.168.19.100/ch36/main/av_stream"
         ]
-
-names_12_floor = [
-    "邓国威工位上摄像头",
-    "甄志明工位上摄像头",
-    "严峻恒工位上摄像头",
-    "蔡伟健工位上摄像头",
-    "12楼门口",
-    "楼上41",
-]
 
 url_12_floor = [
     "rtsp://admin:avcit12345678@192.168.19.100/ch43/main/av_stream",
@@ -68,55 +58,44 @@ aomen = [
 
 
 # 调用enable接口
-# for i in range(len([1])):
 for index, url in enumerate(url_12_floor + url_9_floor):
-    if index > 3:
+    if index > 7:
         break
-    # counter_vehicle_alg = task_pb2.CollectAlg(channel = task_pb2.Channel(id=i, name="笑哈哈"+str(i), url="rtsp://admin:avcit12345678@192.168.1.8" + str(i) + "/h265/ch1/main/av_stream"))
-    # counter_vehicle_alg = task_pb2.CollectAlg(channel = task_pb2.Channel(id=i, name="笑哈哈"+str(i), url="rtsp://admin:avcit12345678@192.168.19.100/ch40/main/av_stream"))
-    # counter_vehicle_alg = task_pb2.CollectAlg(channel = task_pb2.Channel(id=i, name="笑哈哈"+str(i), url="rtsp://admin:avcit12345678@192.168.19.100/ch39/main/av_stream"))
-    # counter_vehicle_alg = task_pb2.CollectAlg(channel = task_pb2.Channel(id=7, name="笑哈哈"+str(7), url="rtsp://admin:avcit12345678@192.168.19.100/ch33/main/av_stream"))
-    # counter_vehicle_alg = task_pb2.CollectAlg(channel = task_pb2.Channel(id=i, name="笑哈哈"+str(i), url="rtsp://192.168.31.191:551/2160"))
-
-    # 9楼
-    # counter_vehicle_alg = task_pb2.CollectAlg(channel = task_pb2.Channel(id=i, name=names_9_floor[i], url=url_9_floor[i]))
-
-    # counter_vehicle_alg.lines.append(global_pb2.Line(id=0, name="笑哈哈", x1=225*100//1920, y1=359*100//1080, x2=930*100//1920, y2=414*100//1080))
-    # counter_vehicle_alg.lines.append(global_pb2.Line(id=1, name="笑哈哈", x1=976*100//1920, y1=518*100//1080, x2=1600*100//1920, y2=280*100//1080))
-
-    # area = global_pb2.Area(id=0, name="笑哈哈")
-    # area.points.append(global_pb2.Point(x=10, y=20))
-    # counter_vehicle_alg.areas.append(area)
-
     counter_vehicle_alg = EnableChannelReq(channel_id=index, channel_name="穷哈哈", channel_url=url,)
 
 
     resp_enable = stub.EnableChannel(counter_vehicle_alg)
     print(url)
-    print(resp_enable)
-    time.sleep(1)
+    # print(resp_enable)
+    # time.sleep(1)
 
 
-# resp_enable = stub.Disable(
+stub.AddTask(AddTaskReq(service_id=0, dev_id=0, root="test"))
+# stub.AddTask(AddTaskReq(service_id=1, dev_id=0, root="test"))
 
-#     task_pb2.AlgConfig(
-#         collect_alg=task_pb2.CollectAlg(
-#             channel=task_pb2.Channel(
-#                 id=27, name="笑哈哈", url="rtsp://admin:avcit12345678@192.168.19.100/ch39/main/av_stream"
-#             ),
-#         )
-#     )
-# )
-# print(resp_enable)
 
-# 调用Notify接口，这个是流式接口
-# resp = stub.Notify(empty_pb2.Empty())
-# while True:
-#     resp.next()
-#     print(1)
+stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=0, channel_name="穷哈哈", config="test"))
+stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=1, channel_name="穷哈哈", config="test"))
+# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=2, channel_name="穷哈哈", config="test"))
+# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=3, channel_name="穷哈哈", config="test"))
+# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=4, channel_name="穷哈哈", config="test"))
+# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=5, channel_name="穷哈哈", config="test"))
+# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=6, channel_name="穷哈哈", config="test"))
+# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=7, channel_name="穷哈哈", config="test"))
 
-# resp = stub.GetRunningState(empty_pb2.Empty())
-# print(resp)
+# stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=0, channel_name="穷哈哈", config="test"))
+# stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=1, channel_name="穷哈哈", config="test"))
+# stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=2, channel_name="穷哈哈", config="test"))
+# stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=3, channel_name="穷哈哈", config="test"))
 
-# reval = stub.Reset(empty_pb2.Empty())
-# print(reval)
+# stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=0))
+# stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=1))
+# stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=2))
+# stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=3))
+
+# stub.RemoveTask(RemoveTaskReq(service_id=1))
+
+# stub.DisableChannel(DisableChannelReq(channel_id=0))
+# stub.DisableChannel(DisableChannelReq(channel_id=1))
+# stub.DisableChannel(DisableChannelReq(channel_id=2))
+# stub.DisableChannel(DisableChannelReq(channel_id=3))

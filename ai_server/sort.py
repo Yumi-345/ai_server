@@ -3,10 +3,20 @@ Author = "xuwj"
 import cv2 
 import copy
 
+import grpc
+from proto.alg_core.core_pb2 import Event, EventType
+from proto.alg_core.core_pb2_grpc import CoreServiceStub
+
+
 MOVE_PIX = 80
 
+
+def create_channel():
+    return grpc.insecure_channel("localhost:50053")
+
+
 class BoxTracker():
-    def __init__(self, img_arr, object_id, conf, top, left, width, height, center_x, center_y, class_id, src_id, frame_number):
+    def __init__(self, img_arr, u_id, conf, top, left, width, height, center_x, center_y, class_id, src_id, frame_number):
         self.n2d = False
         self.img_arr = [img_arr]
         self.conf = [conf]
@@ -19,13 +29,16 @@ class BoxTracker():
         # self.center_y = center_y
         self.trace = [[center_x, center_y]]
 
-        self.object_id = object_id
+        self.u_id = u_id
         self.class_id = class_id
         self.src_id = src_id
 
         self.frame_number = frame_number
 
-    def update(self, img_arr, object_id, conf, top, left, width, height, center_x, center_y, class_id, src_id, frame_number):
+        self.stub = CoreServiceStub(create_channel())
+
+
+    def update(self, img_arr, u_id, conf, top, left, width, height, center_x, center_y, class_id, src_id, frame_number):
         self.frame_number = frame_number
         self.trace.append([center_x, center_y])
 
@@ -98,13 +111,37 @@ class BoxTracker():
             for i in range(len(self.trace)-1):
                     cv2.line(img_arr, (int(self.trace[i][0]), int(self.trace[i][1])),
                                 (int(self.trace[i+1][0]), int(self.trace[i+1][1])), (0, 255, 0), 3)
-            cv2.putText(img_arr, "{}".format(self.object_id), (left+10, top-5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
+            cv2.putText(img_arr, "{}".format(self.u_id), (left+10, top-5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
         except:
-            # print("draw error")
-            pass
-
+            return 0, "draw error"
+        
         if save:
             # 保存图片
-            cv2.imwrite(f"/root/apps/ai_server/output/stream{self.src_id}_frame{self.frame_number}_{self.object_id}_roi.jpg", roi_data)
-            cv2.imwrite(f"/root/apps/ai_server/output/stream{self.src_id}_frame{self.frame_number}_{self.object_id}_src.jpg", img_arr)
-        return 1, "发送成功"
+            # cv2.imwrite(f"/root/apps/ai_server/output/stream{self.src_id}_frame{self.frame_number}_task{self.u_id}_roi.jpg", roi_data)
+            cv2.imwrite(f"/root/apps/ai_server/output/stream{self.src_id}_frame{self.frame_number}_task{self.u_id}_src.jpg", img_arr)
+
+        
+        try:
+            _, src_img_encode = cv2.imencode(".jpg", img_arr)
+            _, roi_img_encode = cv2.imencode(".jpg", roi_data)
+
+            src_img_bytes = src_img_encode.tobytes()
+            roi_img_bytes = roi_img_encode.tobytes()
+            msg = {
+                "service_id" : int(self.u_id.split("_")[0]),
+                "channel_id" : self.src_id,
+                "object_id" : int(self.u_id.split("_")[2])
+            }
+            event = Event(
+                event_type=EventType.EVENT_TYPE_OBJECT_CAPTURE,
+                json_str=f'{msg}',
+                srcs=[src_img_bytes],
+                trains=[b'None'],
+                rois=[roi_img_bytes]
+            )
+            self.stub.PublishEvent(event)
+            return 1, "发送成功"
+        except Exception as e:
+            print(f"error: {e}")
+            return 1, "send failed"
+

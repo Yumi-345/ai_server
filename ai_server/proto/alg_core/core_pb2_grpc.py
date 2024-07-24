@@ -43,13 +43,13 @@ class CoreServiceStub(object):
                 )
         self.UnbindChanTask = channel.unary_unary(
                 '/alg_core.CoreService/UnbindChanTask',
-                request_serializer=proto_dot_alg__core_dot_core__pb2.DisableChannelReq.SerializeToString,
+                request_serializer=proto_dot_alg__core_dot_core__pb2.UnbindChanTaskReq.SerializeToString,
                 response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                 )
         self.PublishMediaInfo = channel.unary_unary(
                 '/alg_core.CoreService/PublishMediaInfo',
-                request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
-                response_deserializer=proto_dot_alg__core_dot_common__pb2.MediaInfo.FromString,
+                request_serializer=proto_dot_alg__core_dot_common__pb2.MediaInfo.SerializeToString,
+                response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                 )
         self.GetMediaInfo = channel.unary_unary(
                 '/alg_core.CoreService/GetMediaInfo',
@@ -58,8 +58,8 @@ class CoreServiceStub(object):
                 )
         self.PublishEvent = channel.unary_unary(
                 '/alg_core.CoreService/PublishEvent',
-                request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
-                response_deserializer=proto_dot_alg__core_dot_core__pb2.Event.FromString,
+                request_serializer=proto_dot_alg__core_dot_core__pb2.Event.SerializeToString,
+                response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                 )
 
 
@@ -158,13 +158,13 @@ def add_CoreServiceServicer_to_server(servicer, server):
             ),
             'UnbindChanTask': grpc.unary_unary_rpc_method_handler(
                     servicer.UnbindChanTask,
-                    request_deserializer=proto_dot_alg__core_dot_core__pb2.DisableChannelReq.FromString,
+                    request_deserializer=proto_dot_alg__core_dot_core__pb2.UnbindChanTaskReq.FromString,
                     response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
             ),
             'PublishMediaInfo': grpc.unary_unary_rpc_method_handler(
                     servicer.PublishMediaInfo,
-                    request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
-                    response_serializer=proto_dot_alg__core_dot_common__pb2.MediaInfo.SerializeToString,
+                    request_deserializer=proto_dot_alg__core_dot_common__pb2.MediaInfo.FromString,
+                    response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
             ),
             'GetMediaInfo': grpc.unary_unary_rpc_method_handler(
                     servicer.GetMediaInfo,
@@ -173,8 +173,8 @@ def add_CoreServiceServicer_to_server(servicer, server):
             ),
             'PublishEvent': grpc.unary_unary_rpc_method_handler(
                     servicer.PublishEvent,
-                    request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
-                    response_serializer=proto_dot_alg__core_dot_core__pb2.Event.SerializeToString,
+                    request_deserializer=proto_dot_alg__core_dot_core__pb2.Event.FromString,
+                    response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -283,7 +283,7 @@ class CoreService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/alg_core.CoreService/UnbindChanTask',
-            proto_dot_alg__core_dot_core__pb2.DisableChannelReq.SerializeToString,
+            proto_dot_alg__core_dot_core__pb2.UnbindChanTaskReq.SerializeToString,
             google_dot_protobuf_dot_empty__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
@@ -300,8 +300,8 @@ class CoreService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/alg_core.CoreService/PublishMediaInfo',
-            google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
-            proto_dot_alg__core_dot_common__pb2.MediaInfo.FromString,
+            proto_dot_alg__core_dot_common__pb2.MediaInfo.SerializeToString,
+            google_dot_protobuf_dot_empty__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -334,7 +334,7 @@ class CoreService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/alg_core.CoreService/PublishEvent',
-            google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
-            proto_dot_alg__core_dot_core__pb2.Event.FromString,
+            proto_dot_alg__core_dot_core__pb2.Event.SerializeToString,
+            google_dot_protobuf_dot_empty__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
