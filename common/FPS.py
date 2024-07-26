@@ -65,3 +65,12 @@ class PERF_DATA:
     
     def update_fps(self, stream_index):
         self.all_stream_fps[stream_index].update_fps()
+
+    def remove_stream(self, id):
+        if f"stream{id}" in self.all_stream_fps.keys():
+            self.all_stream_fps.pop(f"stream{id}")
+    
+    def add_stream(self, id):
+        if not f"stream{id}" in self.all_stream_fps.keys():
+            self.all_stream_fps[f"stream{id}"] = GETFPS(id)
+

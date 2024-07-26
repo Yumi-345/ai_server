@@ -1,41 +1,18 @@
-
 #!/usr/bin/env python3
-# ls tmp/stream0*.jpg|wc && ls tmp/stream1*.jpg|wc && ls tmp/stream2*.jpg|wc && ls tmp/stream3*.jpg|wc && ls tmp/stream4*.jpg|wc  && ls tmp/stream5*.jpg|wc  && ls tmp/stream6*.jpg|wc  && ls tmp/stream7*.jpg|wc
-# ls stream0|wc && ls stream1|wc && ls stream2|wc && ls stream3|wc && ls stream4|wc  && ls stream5|wc  && ls stream6|wc  && ls stream7|wc
-import copy
-import json
-import os
-# modeset_cmd = "sudo modprobe nvidia-drm modeset=1"
-# os.system(modeset_cmd)
-# install_cmd = "sudo /opt/nvidia/deepstream/deepstream/install.sh"
-# os.system(install_cmd)
 
-import queue
-import shutil
 import sys
-# sys.path.append('/root/apps')
-# sys.path.append('/home/avcit/.local/lib/python3.8/site-packages')
+sys.path.append('/root/apps')
+sys.path.append('/root/apps/ai_server')
 
-import cv2
-import multiprocessing
-
-import numpy as np
-sys.path.append('../')
+# sys.path.append('../')
 import gi
-import configparser
 gi.require_version('Gst', '1.0')
-from gi.repository import Gst, GLib
-from ctypes import *
+# from ctypes import *
 import time
-from common.is_aarch_64 import is_aarch64
-from common.FPS import PERF_DATA
-import pyds
 import logging
 
-import ctypes
-import cupy as cp
-
 from pipe import Plumber
+
 
 # 配置日志记录器
 logging.basicConfig(filename='/root/apps/ai_server/deepstream.log', level=logging.DEBUG,
@@ -75,8 +52,8 @@ class TaskServiceImpl(CoreServiceServicer):
             dev_id = request.dev_id
             root = request.root
             logging.info(f">>>accept add task {service_id}")
-            if not Plumber.stand_by:
-                time.sleep(2)
+            # if not Plumber.stand_by:
+            #     time.sleep(2)
 
             if service_id in Plumber.task_list:
                 logging.info(f">>>task {service_id} already added")

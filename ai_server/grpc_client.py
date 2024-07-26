@@ -59,7 +59,7 @@ aomen = [
 
 # 调用enable接口
 for index, url in enumerate(url_12_floor + url_9_floor):
-    if index > 7:
+    if index > 3:
         break
     counter_vehicle_alg = EnableChannelReq(channel_id=index, channel_name="穷哈哈", channel_url=url,)
 
@@ -69,15 +69,16 @@ for index, url in enumerate(url_12_floor + url_9_floor):
     # print(resp_enable)
     # time.sleep(1)
 
-
+print("add task")
 stub.AddTask(AddTaskReq(service_id=0, dev_id=0, root="test"))
-# stub.AddTask(AddTaskReq(service_id=1, dev_id=0, root="test"))
+# # stub.AddTask(AddTaskReq(service_id=1, dev_id=0, root="test"))
 
 
+print("bind")
 stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=0, channel_name="穷哈哈", config="test"))
 stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=1, channel_name="穷哈哈", config="test"))
-# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=2, channel_name="穷哈哈", config="test"))
-# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=3, channel_name="穷哈哈", config="test"))
+stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=2, channel_name="穷哈哈", config="test"))
+stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=3, channel_name="穷哈哈", config="test"))
 # stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=4, channel_name="穷哈哈", config="test"))
 # stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=5, channel_name="穷哈哈", config="test"))
 # stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=6, channel_name="穷哈哈", config="test"))
@@ -88,13 +89,17 @@ stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=1, channel_name="穷�
 # stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=2, channel_name="穷哈哈", config="test"))
 # stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=3, channel_name="穷哈哈", config="test"))
 
+# print("unbind")
 # stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=0))
 # stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=1))
 # stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=2))
 # stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=3))
 
+# print("remove task")
+# stub.RemoveTask(RemoveTaskReq(service_id=0))
 # stub.RemoveTask(RemoveTaskReq(service_id=1))
 
+# print("disable channel")
 # stub.DisableChannel(DisableChannelReq(channel_id=0))
 # stub.DisableChannel(DisableChannelReq(channel_id=1))
 # stub.DisableChannel(DisableChannelReq(channel_id=2))

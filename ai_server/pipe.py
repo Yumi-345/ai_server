@@ -6,25 +6,20 @@ import configparser
 gi.require_version('Gst', '1.0')
 from gi.repository import Gst, GLib
 
-# import proto.task_pb2 as task_pb2
 
 from common.FPS import PERF_DATA
-import ctypes
-import cupy as cp
+
 import cv2 
 
 import threading
-import os, sys
+import sys
 import pyds
-import json
 import time
-import queue
 
 from sort import BoxTracker
 
-GPU_ID = 0
+from utils import start_pipeline, stop_pipeline, remove_element_from_pipeline, get_data_GPU
 
-MAX_NUM_SOURCES = 16
 
 MUXER_OUTPUT_WIDTH=1920
 MUXER_OUTPUT_HEIGHT=1080
@@ -33,133 +28,26 @@ PGIE_CONFIG_FILE = '/root/apps/ai_server/cfg/config_infer_primary_yoloV8n.txt'
 TRACKER_CONFIG_FILE = "/root/apps/ai_server/cfg/dstest_tracker_config.txt"
 
 
-def check_pipeline_elements(pipeline):
-    for element in pipeline.iterate_elements():
-        state_change_return, current, pending = element.get_state(1 * Gst.SECOND)
-        print(f"Element {element.get_name()} state: {current}, Pending state: {pending}")
-        if state_change_return == Gst.StateChangeReturn.FAILURE:
-            print(f"Element {element.get_name()} failed to change state.")
-            return False
-    return True
-
-
-def stop_pipeline(pipeline, timeout=5):
-    if pipeline:
-        # pipeline.set_state(Gst.State.PAUSED)
-        # while True:
-        #     state_change_return, current, pending = pipeline.get_state(0.1 * Gst.SECOND)
-        #     # print(f"Current pipeline state: {current}, Pending state: {pending}")
-        #     if current == Gst.State.PAUSED:
-        #         print("Pipeline paused successfully.")
-        #         break
-        #     if time.time() - start_time > timeout:
-        #         print("Failed to pause pipeline within the timeout period.")
-        #         break
-
-        pipeline.set_state(Gst.State.NULL)
-        start_time = time.time()
-        while True:
-            state_change_return, current, pending = pipeline.get_state(0.1 * Gst.SECOND)
-            # print(f"Current pipeline state: {current}, Pending state: {pending}")
-            if current == Gst.State.NULL:
-                print("Pipeline stopped successfully.")
-                break
-            if time.time() - start_time > timeout:
-                print("Failed to stop pipeline within the timeout period.")
-                break
-
-# Function to start the pipeline
-def start_pipeline(pipeline, timeout=5):
-    if pipeline:
-        pipeline.set_state(Gst.State.PLAYING)
-        start_time = time.time()
-        while True:
-            state_change_return, current, pending = pipeline.get_state(0.1 * Gst.SECOND)
-            # print(f"Current pipeline state: {current}, Pending state: {pending}")
-            if current == Gst.State.PLAYING:
-                print("Pipeline started successfully.")
-                # check_pipeline_elements(pipeline)
-                return True
-            if time.time() - start_time > timeout:
-                print("Failed to start pipeline within the timeout period.")
-                if not check_pipeline_elements(pipeline):
-                    print("One or more elements failed to change state.")
-                break
-        return False
-
-
-def remove_element_from_pipeline(pipeline, element, timeout=5):
-    if pipeline and element:
-        pipeline.remove(element)
-        element.set_state(Gst.State.NULL)
-        start_time = time.time()
-        while True:
-            state_change_return, current, pending = element.get_state(1 * Gst.SECOND)
-            print(f"Current element state: {current}, Pending state: {pending}")
-            if current == Gst.State.NULL:
-                print(f"Element {element.get_name()} removed and set to NULL state.")
-                break
-            if time.time() - start_time > timeout:
-                print(f"Failed to set element {element.get_name()} to NULL state within the timeout period.")
-                break
-
-
-def get_data_GPU(gst_buffer, frame_meta):
-    # Create dummy owner object to keep memory for the image array alive
-    owner = None
-    # Getting Image data using nvbufsurface
-    # the input should be address of buffer and batch_id
-    # Retrieve dtype, shape of the array, strides, pointer to the GPU buffer, and size of the allocated memory
-    data_type, shape, strides, dataptr, size = pyds.get_nvds_buf_surface_gpu(hash(gst_buffer), frame_meta.batch_id)
-    # dataptr is of type PyCapsule -> Use ctypes to retrieve the pointer as an int to pass into cupy
-    ctypes.pythonapi.PyCapsule_GetPointer.restype = ctypes.c_void_p
-    ctypes.pythonapi.PyCapsule_GetPointer.argtypes = [ctypes.py_object, ctypes.c_char_p]
-    # Get pointer to buffer and create UnownedMemory object from the gpu buffer
-    c_data_ptr = ctypes.pythonapi.PyCapsule_GetPointer(dataptr, None)
-    unownedmem = cp.cuda.UnownedMemory(c_data_ptr, size, owner)
-    # Create MemoryPointer object from unownedmem, at index 0
-    memptr = cp.cuda.MemoryPointer(unownedmem, 0)
-    # Create cupy array to access the image data. This array is in GPU buffer
-    n_frame_gpu = cp.ndarray(shape=shape, dtype=data_type, memptr=memptr, strides=strides, order='C')
-    # Initialize cuda.stream object for stream synchronization
-    # stream = cp.cuda.stream.Stream(null=True) # Use null stream to prevent other cuda applications from making illegal memory access of buffer
-    # Modify the red channel to add blue tint to image
-    
-    # with stream:
-    return n_frame_gpu.get()
-
 
 class Plumber():
     task_list = []
     channel_list = []
     task_channel_dict = {}
 
-    num_sources = 0
-    # task_queue = queue.Queue()
     stand_by = False
 
     def __init__(self, logging):
         self.logging = logging
-        self.g_source_id_list = [0] * MAX_NUM_SOURCES
-        self.g_eos_list = [False] * MAX_NUM_SOURCES
-        self.g_source_enabled = [False] * MAX_NUM_SOURCES
-        self.g_source_bin_list = [None] * MAX_NUM_SOURCES
-        self.g_sink_bin_list = [None] * MAX_NUM_SOURCES
-        self.g_queue_bin_list = [None] * MAX_NUM_SOURCES
-        self.g_convert_bin_list = [None] * MAX_NUM_SOURCES
-        self.g_filter_bin_list = [None] * MAX_NUM_SOURCES
-        # self.src_task_count = [0] * MAX_NUM_SOURCES
 
-        self.trackers = {}
-        self.streammuxs = {}
-        self.tees = {}
+        # self.g_source_bin_list = {}
+        # self.streammuxs = {}
+        # self.tees = {}
 
-        # self.add_task_/que_flag = 1
+        self.tracker_dict = {}
+        self.tracker_lock = threading.Lock()
 
-        self.trackers_lock = threading.Lock()
-
-        self.perf_data = PERF_DATA(8)
-        self.tiler_size = json.load(open("/root/apps/ai_server/cfg/config.json", 'r')) 
+        self.perf_data = PERF_DATA(0)
+        # self.tiler_size = json.load(open("/root/apps/ai_server/cfg/config.json", 'r')) 
         t = threading.Thread(target=self.run, args=())
         t.start()
 
@@ -211,8 +99,6 @@ class Plumber():
                     class_id = obj_meta.class_id
                     conf = obj_meta.confidence
                     
-                    # print(f"Tracking Object ID {object_id} at ({left}, {top}, {width}, {height})")
-
                     if left < 10 or top < 10 or left + width > 1920 - 10 or top + height > 1080 - 10:
                         l_obj = l_obj.next
                         continue
@@ -221,34 +107,34 @@ class Plumber():
                     center_x = left + width / 2
                     center_y = top + height / 2
                     try:
-                        self.trackers_lock.acquire()
-                        if u_id in self.trackers.keys():
-                            self.trackers[u_id].update(img_arr, u_id, conf, top, left, width, height, center_x, center_y, class_id, src_id, frame_number)
+                        self.tracker_lock.acquire()
+                        if u_id in self.tracker_dict.keys():
+                            self.tracker_dict[u_id].update(img_arr, u_id, conf, top, left, width, height, center_x, center_y, class_id, src_id, frame_number)
                         else:
-                            self.trackers[u_id] = BoxTracker(img_arr, u_id, conf, top, left, width, height, center_x, center_y, class_id, src_id, frame_number)
+                            self.tracker_dict[u_id] = BoxTracker(img_arr, u_id, conf, top, left, width, height, center_x, center_y, class_id, src_id, frame_number)
                     except Exception as e:
-                        print(f"error in update trackers: {e}")
+                        self.logging.info(f"error in update tracker_dict: {e}")
                     finally:
-                        self.trackers_lock.release()
+                        self.tracker_lock.release()
                 try:
                     l_obj = l_obj.next
                 except StopIteration:
                     break
             try:
-                self.trackers_lock.acquire()
+                self.tracker_lock.acquire()
                 n2d = []
-                for key in self.trackers.keys():
-                    if frame_number - self.trackers[key].frame_number > 18: #判断是否达到发送要求
-                        flag, msg = self.trackers[key].send(save=True)
+                for key in self.tracker_dict.keys():
+                    if frame_number - self.tracker_dict[key].frame_number > 18: #判断是否达到发送要求
+                        flag, msg = self.tracker_dict[key].send(save=True)
                         # print(msg)
-                        if frame_number - self.trackers[key].frame_number > 120 or flag:
+                        if frame_number - self.tracker_dict[key].frame_number > 120 or flag:
                             n2d.append(key)
                 for index in n2d:
-                    self.trackers.pop(index)
+                    self.tracker_dict.pop(index)
             except Exception as e:
-                print(f"error in pop tracker: {e}")
+                self.logging.info(f"error in pop tracker: {e}")
             finally:
-                self.trackers_lock.release()
+                self.tracker_lock.release()
 
             try:
                 l_frame = l_frame.next
@@ -289,12 +175,12 @@ class Plumber():
                 if parsed:
                     #Set eos status of stream to True, to be deleted in delete-sources
                     self.logging.info("Got EOS from stream %d" % stream_id)
-                    self.g_eos_list[stream_id] = True
         return True
 
     def stop_release_source(self, source_id):
         #Attempt to change status of source to be released 
-        state_return = self.g_source_bin_list[source_id].set_state(Gst.State.NULL)
+        source_bin = self.pipeline.get_by_name(f"source-bin-{source_id}")
+        state_return = source_bin.set_state(Gst.State.NULL)
         stop_pipeline(self.pipeline)
 
         if state_return == Gst.StateChangeReturn.SUCCESS:
@@ -313,28 +199,33 @@ class Plumber():
 
             self.logging.info("LBK_STATE CHANGE SUCCESS\n")
             #Remove the source bin from the pipeline
-            self.pipeline.remove(self.g_source_bin_list[source_id])
+            self.pipeline.remove(source_bin)
             # Plumber.num_sources -= 1
             # self.pipeline.remove(self.g_sink_bin_list[source_id])
             # self.pipeline.remove(self.g_queue_bin_list[source_id])
             # self.pipeline.remove(self.g_convert_bin_list[source_id])
             # self.pipeline.remove(self.g_filter_bin_list[source_id])
 
+            # self.tees.pop(source_id)
             self.pipeline.remove(self.pipeline.get_by_name(f"tee_{source_id}"))
             # self.pipeline.remove(self.pipeline.get_by_name(f"queue_channel_{source_id}"))
             # self.pipeline.remove(self.pipeline.get_by_name(f"fakesink_channel_{source_id}"))
             for service_id in Plumber.task_channel_dict.keys():
                 if source_id in Plumber.task_channel_dict[service_id]:
                     self.pipeline.remove(self.pipeline.get_by_name(f"channel{source_id}_task{service_id}"))
-                    self.streammuxs[service_id].release_request_pad(self.streammuxs[service_id].get_static_pad(f"sink_{source_id}"))
+                    
+                    streammux = self.pipeline.get_by_name(f"Stream-muxer-{service_id}")
+                    if streammux:
+                        streammux.release_request_pad(streammux.get_static_pad(f"sink_{source_id}"))
+
                     Plumber.task_channel_dict[service_id].remove(source_id)
             try:
-                self.trackers_lock.acquire()
-                self.trackers.clear()
+                self.tracker_lock.acquire()
+                self.tracker_dict.clear()
             except Exception as e:
-                print(f"error in stop src pop tracker: {e}")
+                self.logging.info(f"error in stop src clean tracker: {e}")
             finally:
-                self.trackers_lock.release()
+                self.tracker_lock.release()
             start_pipeline(self.pipeline)
             return True
 
@@ -350,29 +241,34 @@ class Plumber():
             # # sinkpad.send_event(Gst.Event.new_flush_stop(False))
             # self.streammux.release_request_pad(sinkpad)
             self.logging.info("LBK_STATE CHANGE ASYNC\n")
-            self.pipeline.remove(self.g_source_bin_list[source_id])
+            self.pipeline.remove(source_bin)
             # Plumber.num_sources -= 1
             # self.pipeline.remove(self.g_sink_bin_list[source_id])
             # self.pipeline.remove(self.g_queue_bin_list[source_id])
             # self.pipeline.remove(self.g_convert_bin_list[source_id])
             # self.pipeline.remove(self.g_filter_bin_list[source_id])
 
+            # self.tees.pop(source_id)
             self.pipeline.remove(self.pipeline.get_by_name(f"tee_{source_id}"))
             # self.pipeline.remove(self.pipeline.get_by_name(f"queue_channel_{source_id}"))
             # self.pipeline.remove(self.pipeline.get_by_name(f"fakesink_channel_{source_id}"))
             for service_id in Plumber.task_channel_dict.keys():
                 if source_id in Plumber.task_channel_dict[service_id]:
                     self.pipeline.remove(self.pipeline.get_by_name(f"channel{source_id}_task{service_id}"))
-                    self.streammuxs[service_id].release_request_pad(self.streammuxs[service_id].get_static_pad(f"sink_{source_id}"))
+                    
+                    streammux = self.pipeline.get_by_name(f"Stream-muxer-{service_id}")
+                    if streammux:
+                        streammux.release_request_pad(streammux.get_static_pad(f"sink_{source_id}"))
+                    
                     Plumber.task_channel_dict[service_id].remove(source_id)
         
             try:
-                self.trackers_lock.acquire()
-                self.trackers.clear()
+                self.tracker_lock.acquire()
+                self.tracker_dict.clear()
             except Exception as e:
-                print(f"error in stop src pop tracker: {e}")
+                self.logging.info(f"error in stop src clean tracker: {e}")
             finally:
-                self.trackers_lock.release()
+                self.tracker_lock.release()
             start_pipeline(self.pipeline)
 
             return True
@@ -382,10 +278,9 @@ class Plumber():
 
         # Create a source GstBin to abstract this bin's content from the rest of the
         # pipeline
-        self.g_source_id_list[source_id] = source_id
-        bin_name="source-bin-%02d" %source_id
+        bin_name = f"source-bin-{source_id}"
         self.logging.info(bin_name)
-        nbin=Gst.Bin.new(bin_name)
+        nbin = Gst.Bin.new(bin_name)
         if not nbin:
             self.logging.info(" Unable to create source bin \n")
         self.pipeline.add(nbin)
@@ -424,14 +319,16 @@ class Plumber():
         self.pipeline.add(tee) # 特别注意这里，因为tee已经需要放在bin的外部了，所以这里是添加到pipeline里边而不是nbin
         # Gst.Bin.add(nbin,tee)
 
+        ###########################################################################
         # queue = Gst.ElementFactory.make("queue", f"queue_channel_{source_id}")
         # self.pipeline.add(queue)
 
         # sink = Gst.ElementFactory.make("fakesink", f"fakesink_channel_{source_id}")
-        # sink.set_property("signal-handoffs", True)
-        # sink.set_property("sync", False)
+        # # sink.set_property("signal-handoffs", True)
+        # # sink.set_property("sync", False)
+        # sink.set_property('enable-last-sample', 0) #奇怪的属性，设置了就能运行
         # self.pipeline.add(sink)
-
+        ############################################################################
 
         nbin.add_pad(Gst.GhostPad.new_no_target("src",Gst.PadDirection.SRC))
 
@@ -453,15 +350,11 @@ class Plumber():
 
         sinkpad = tee.get_static_pad("sink")
         bin_ghost_pad.link(sinkpad)
-        
-        
-        # bin_ghost_pad.link(tee)
 
         # tee.link(queue)
         # queue.link(sink)
 
-        self.g_source_enabled[source_id] = True
-        self.tees[source_id] = tee
+        # self.tees[source_id] = tee
 
         return nbin
 
@@ -481,16 +374,16 @@ class Plumber():
                 self.logging.info(f"Creating streammux_{service_id}\n ")
                 # Create nvstreammux instance to form batches from one or more sources.
                 streammux = Gst.ElementFactory.make("nvstreammux", f"Stream-muxer-{service_id}")
-                self.streammuxs[service_id] = streammux
+                # self.streammuxs[service_id] = streammux
                 if not streammux:
                     sys.stderr.write(" Unable to create NvStreamMux \n")
 
                 streammux.set_property("batched-push-timeout", 200000)                   
                 streammux.set_property("batch-size", 16)           # important!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 streammux.set_property("gpu_id", dev_id)
+                streammux.set_property("live-source", 1)
 
                 self.pipeline.add(streammux)
-                streammux.set_property("live-source", 1)
 
                 self.logging.info("Creating Pgie \n ")
                 pgie = Gst.ElementFactory.make("nvinfer", f"primary_inference{service_id}")
@@ -516,9 +409,9 @@ class Plumber():
                 #     sys.stderr.write(" Unable to create drmsink \n")
 
                 sink = Gst.ElementFactory.make("fakesink", f"task_fakesink_{service_id}")
-                sink.set_property("signal-handoffs", True)
-                sink.set_property("sync", False)
-                # sink.set_property("silent", False)
+                # sink.set_property("signal-handoffs", True)
+                # sink.set_property("sync", False)
+                sink.set_property('enable-last-sample', 0)
                     
                 streammux.set_property('live-source', 1)
                 #Set streammux width and height
@@ -553,10 +446,10 @@ class Plumber():
                         tracker.set_property('enable_batch_process', tracker_enable_batch_process)
 
                 #Set necessary properties of the nvinfer element, the necessary ones are:
-                pgie_batch_size=pgie.get_property("batch-size")
-                if(pgie_batch_size < MAX_NUM_SOURCES):
-                    self.logging.info("WARNING: Overriding infer-config batch-size",pgie_batch_size," with number of sources ", Plumber.num_sources," \n")
-                pgie.set_property("batch-size",MAX_NUM_SOURCES)
+                # pgie_batch_size=pgie.get_property("batch-size")
+                # if(pgie_batch_size < MAX_NUM_SOURCES):
+                #     self.logging.info("WARNING: Overriding infer-config batch-size",pgie_batch_size," with number of sources ", Plumber.num_sources," \n")
+                # pgie.set_property("batch-size",MAX_NUM_SOURCES)
 
                 self.logging.info("Adding elements to Pipeline \n")
                 self.pipeline.add(pgie)
@@ -590,17 +483,21 @@ class Plumber():
                 self.pipeline.remove(self.pipeline.get_by_name(f"primary_inference{service_id}"))
                 self.pipeline.remove(self.pipeline.get_by_name(f"tracker{service_id}"))
                 self.pipeline.remove(self.pipeline.get_by_name(f"task_fakesink_{service_id}"))
-                for channel_id in self.task_channel_dict[service_id]:
+                for channel_id in Plumber.task_channel_dict[service_id]:
                     self.pipeline.remove(self.pipeline.get_by_name(f"channel{channel_id}_task{service_id}"))
-                    self.tees[channel_id].release_request_pad(self.tees[channel_id].get_static_pad(f"src_{service_id+1}"))
+                    
+                    tee = self.pipeline.get_by_name(f"tee_{channel_id}")
+                    
+                    if tee:
+                        tee.release_request_pad(tee.get_static_pad(f"src_{service_id+1}"))
                 
                 try:
-                    self.trackers_lock.acquire()
-                    self.trackers.clear()
+                    self.tracker_lock.acquire()
+                    self.tracker_dict.clear()
                 except Exception as e:
-                    print(f"error in remove task pop tracker: {e}")
+                    self.logging.info(f"error in remove task clean tracker: {e}")
                 finally:
-                    self.trackers_lock.release()
+                    self.tracker_lock.release()
 
                 # self.pipeline.set_state(Gst.State.PLAYING)
                 start_pipeline(self.pipeline)
@@ -622,9 +519,6 @@ class Plumber():
                 # stop_pipeline(self.pipeline)
                 time.sleep(0.5)
 
-                #Enable the source
-                self.g_source_enabled[channel_id] = True
-
                 self.logging.info("Calling Start %d " % channel_id)
 
                 #Create a uridecode bin with the chosen source id
@@ -635,79 +529,27 @@ class Plumber():
                     exit(1)
                 
                 #Add source bin to our list and to pipeline
-                self.g_source_bin_list[channel_id] = source_bin
-
-                # pipeline nvstreamdemux -> queue -> nvvidconv -> nvosd -> (if Jetson) nvegltransform -> nveglgl
-                # Creating EGLsink
-                # if True:
-                #     self.logging.info("Creating fakesink \n")
-                #     # sink = make_element("nv3dsink", source_id)
-                #     sink = self.make_element("fakesink", channel_id)
-                #     if not sink:
-                #         sys.stderr.write(" Unable to create nv3dsink \n")
-                #     sink.set_property('enable-last-sample', 0)
-                #     sink.set_property('sync', 0)
-                    
-                # self.pipeline.add(sink)
-                # self.g_sink_bin_list[channel_id] = sink
-
-                # creating queue
-                # queue = self.make_element("queue", channel_id)
-
-                # self.pipeline.add(queue)
-                # self.g_queue_bin_list[channel_id] = queue
-
-                # creating nvosd
-                # nvdsosd = make_element("nvdsosd", source_id)
-                # pipeline.add(nvdsosd)
-
-                # connect nvstreamdemux -> queue
-                # padname = "src_%u" % source_id
-                # demuxsrcpad = self.nvstreamdemux.get_request_pad(padname)
-                # if not demuxsrcpad:
-                #     sys.stderr.write("Unable to create demux src pad \n")
-
-                # queuesinkpad = queue.get_static_pad("sink")
-                # if not queuesinkpad:
-                #     sys.stderr.write("Unable to create queue sink pad \n")
-                # demuxsrcpad.link(queuesinkpad)
-
-
-                # connect  queue -> nvvidconv -> nvosd -> nveglgl
-                # queue.link(nvvideoconvert)
-                # nvvideoconvert.link(filter)
-                # filter.link(sink)
-                # queue.link(sink)
-
-                # sink.set_property("sync", 0)
-                # sink.set_property("qos", 0)
-                    
-                # sink_sinkpad = sink.get_static_pad("sink")
-                # if not sink_sinkpad:
-                #     sys.stderr.write(" Unable to get sink pad of nvosd \n")
-                # sink_sinkpad.add_probe(Gst.PadProbeType.BUFFER, self.tiler_sink_pad_buffer_probe, 0)
+                # self.g_source_bin_list[channel_id] = source_bin
 
                 #Set state of source bin to playing
-                state_return = self.g_source_bin_list[channel_id].set_state(Gst.State.PLAYING)
+                state_return = source_bin.set_state(Gst.State.PLAYING)
 
                 if state_return == Gst.StateChangeReturn.SUCCESS:
                     self.logging.info("STATE CHANGE SUCCESS\n")
-                    Plumber.num_sources += 1
 
                 elif state_return == Gst.StateChangeReturn.FAILURE:
                     self.logging.info("STATE CHANGE FAILURE\n")
                 
                 elif state_return == Gst.StateChangeReturn.ASYNC:
-                    state_return = self.g_source_bin_list[channel_id].get_state(Gst.CLOCK_TIME_NONE)
-                    Plumber.num_sources += 1
+                    state_return = source_bin.get_state(Gst.CLOCK_TIME_NONE)
 
                 elif state_return == Gst.StateChangeReturn.NO_PREROLL:
                     self.logging.info("STATE CHANGE NO PREROLL\n")
-                    Plumber.num_sources += 1
 
                 self.pipeline.set_state(Gst.State.PLAYING)
                 # start_pipeline(self.pipeline)
                 
+                self.perf_data.add_stream(channel_id, source_bin)
                 return True
             except Exception as e:
                 self.logging.info(f"error in enable: {e}")
@@ -719,18 +561,17 @@ class Plumber():
 
     def disable_channel(self,f):
         def wrapper(*args):
-            source_id = args[0]
+            channel_id = args[0]
             try:
-                #Disable the source
-                self.g_source_enabled[source_id] = False
                 #Release the source
-                self.logging.info("Calling Stop %d " % source_id)
-                reval = self.stop_release_source(source_id)
+                self.logging.info("Calling Stop %d " % channel_id)
+                reval = self.stop_release_source(channel_id)
 
                 if reval == 1:
+                    self.perf_data.remove_stream(channel_id)
                     return True
             except Exception as e:
-                self.logging.info(f"error in disable channel_{source_id}: {e}")
+                self.logging.info(f"error in disable channel_{channel_id}: {e}")
                 return False
         return wrapper 
 
@@ -747,14 +588,15 @@ class Plumber():
                 # time.sleep(0.5)
                 # stop_pipeline(self.g_source_bin_list[channel_id])
                 stop_pipeline(self.pipeline)
-                sinkpad = self.streammuxs[service_id].get_request_pad(f"sink_{channel_id}")
+                streammux = self.pipeline.get_by_name(f"Stream-muxer-{service_id}")
+                if streammux:
+                    sinkpad = streammux.get_request_pad(f"sink_{channel_id}")
                 
                 queue = Gst.ElementFactory.make("queue", f"channel{channel_id}_task{service_id}")
                 self.pipeline.add(queue)
 
-                # self.tees[channel_id].link(queue)
-                tee = self.tees[channel_id]
-                tee_src_pad = tee.get_request_pad(f"src_{service_id+1}")
+                tee = self.pipeline.get_by_name(f"tee_{channel_id}")
+                tee_src_pad = tee.get_request_pad(f"src_{service_id}")
 
                 queue_sink_pad = queue.get_static_pad("sink")
                 queue_src_pad = queue.get_static_pad("src")
@@ -768,12 +610,12 @@ class Plumber():
                 return True
             except Exception as e:
                 self.logging.info(f"error in bind: {e}")
+                start_pipeline(self.pipeline)
                 return False
         return wrapper
     
     def unbind_chan_task(self, f):
         def wrapper(*args):
-            print("***********************************************************")
             service_id = args[0]
             channel_id = args[1]
             try:
@@ -782,14 +624,14 @@ class Plumber():
                 queue = self.pipeline.get_by_name(f"channel{channel_id}_task{service_id}")
 
                 if queue:
-                    remove_element_from_pipeline(self.pipeline, queue)
-                    # self.pipeline.remove(queue)
+                    # remove_element_from_pipeline(self.pipeline, queue)
+                    self.pipeline.remove(queue)
                     # queue.set_state(Gst.State.NULL)
 
-                tee = self.tees[channel_id]
-                streammux = self.streammuxs[service_id]
+                tee = self.pipeline.get_by_name(f"tee_{channel_id}")
+                streammux = self.pipeline.get_by_name(f"Stream-muxer-{service_id}")
 
-                tee_src_pad = tee.get_static_pad(f"src_{service_id+1}")
+                tee_src_pad = tee.get_static_pad(f"src_{service_id}")
                 if tee_src_pad:
                     tee.release_request_pad(tee_src_pad)
 
@@ -798,12 +640,12 @@ class Plumber():
                     streammux.release_request_pad(sinkpad)
 
                 try:
-                    self.trackers_lock.acquire()
-                    self.trackers.clear
+                    self.tracker_lock.acquire()
+                    self.tracker_dict.clear()
                 except Exception as e:
-                    print(f"error in unbind pop tracker: {e}")
+                    self.logging.info(f"error in unbind clean tracker: {e}")
                 finally:
-                    self.trackers_lock.release()
+                    self.tracker_lock.release()
 
                 # start_pipeline(self.g_source_bin_list[channel_id])
                 start_pipeline(self.pipeline)
@@ -830,174 +672,8 @@ class Plumber():
         if not self.pipeline:
             sys.stderr.write(" Unable to create Pipeline \n")
 
-
-
-        "=============================================================="
-        "=============================================================="
-
-
-        # self.logging.info("Creating streammux \n ")
-        # # Create nvstreammux instance to form batches from one or more sources.
-        # self.streammux = Gst.ElementFactory.make("nvstreammux", "Stream-muxer")
-        # if not self.streammux:
-        #     sys.stderr.write(" Unable to create NvStreamMux \n")
-
-        # self.streammux.set_property("batched-push-timeout", 200000)                   
-        # self.streammux.set_property("batch-size", 16)           # important!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # self.streammux.set_property("gpu_id", GPU_ID)
-
-        # self.pipeline.add(self.streammux)
-        # self.streammux.set_property("live-source", 1)
-
-        # self.logging.info("Creating Pgie \n ")
-        # pgie = Gst.ElementFactory.make("nvinfer", "primary-inference")
-        # if not pgie:
-        #     sys.stderr.write(" Unable to create pgie \n")
-
-        # self.logging.info("Creating nvtracker \n ")
-        # tracker = Gst.ElementFactory.make("nvtracker", "tracker")
-        # if not tracker:
-        #     sys.stderr.write(" Unable to create tracker \n")
-
-        # tracker_srcpad = tracker.get_static_pad("src")
-        # if not tracker_srcpad:
-        #     sys.stderr.write(" Unable to get sink pad of nvosd \n")
-        # tracker_srcpad.add_probe(Gst.PadProbeType.BUFFER, self.nvdrmvideosink_probe, 0)
-
-        # # self.logging.info("Creating nvstreamdemux \n ")
-        # # self.nvstreamdemux = Gst.ElementFactory.make("nvstreamdemux", "nvstreamdemux")
-        # # if not self.nvstreamdemux:
-        # #     sys.stderr.write(" Unable to create nvstreamdemux \n")
-
-        # self.logging.info("Creating tee \n ")
-        # tee = Gst.ElementFactory.make("tee", "tee")
-        # if not tee:
-        #     sys.stderr.write(" Unable to create tee \n")
-
-        # tee_q0 = Gst.ElementFactory.make("queue", "tee_q0")
-        # # tee_q1 = Gst.ElementFactory.make("queue", "tee_q1")
-
-        # self.logging.info("Creating tiler \n ")
-        # tiler = Gst.ElementFactory.make("nvmultistreamtiler", "nvtiler")
-        # tiler.set_property('rows', self.tiler_size["tiler_row"])
-        # tiler.set_property('columns', self.tiler_size["tiler_col"])
-        # tiler.set_property('width', self.tiler_size["tiler_w"])
-        # tiler.set_property('height', self.tiler_size["tiler_h"])
-        # if not tiler:
-        #     sys.stderr.write(" Unable to create tiler \n")
-
-        # self.logging.info("Creating nvosd \n ")
-        # nvosd = Gst.ElementFactory.make("nvdsosd", "onscreendisplay")
-        # if not nvosd:
-        #     sys.stderr.write(" Unable to create nvosd \n")
-
-        # # creating nvvidconv
-        # out_videoconvert = Gst.ElementFactory.make("nvvideoconvert", "out_videoconvert")
-
-        # out_caps = Gst.Caps.from_string("video/x-raw(memory:NVMM), width=1920, height=1080")
-        # out_filter = Gst.ElementFactory.make("capsfilter", "capsfilter")
-        # out_filter.set_property("caps", out_caps)
-
-
-        # self.logging.info("Creating sink \n ")
-        # # drmsink = Gst.ElementFactory.make("nvdrmvideosink", "drmsink")
-        # # # drmsink = Gst.ElementFactory.make("nv3dsink", "drmsink")
-        # # drmsink.set_property('enable-last-sample', 0)
-        # # drmsink.set_property('sync', 0)
-        # # if not drmsink:
-        # #     sys.stderr.write(" Unable to create drmsink \n")
-
-        # sink = Gst.ElementFactory.make("fakesink", "sink")
-        # sink.set_property("signal-handoffs", True)
-        # sink.set_property("silent", False)
-        
-        # # 定义handoff信号的回调函数
-        # def on_handoff(fakesink, buffer, pad):
-        #     pass
-        #     # print(f"Buffer received with PTS: {buffer.pts}")
-
-        # # 连接handoff信号
-        # sink.connect("handoff", on_handoff)
-
-
-        # self.streammux.set_property('live-source', 1)
-        # #Set streammux width and height
-        # self.streammux.set_property('width', MUXER_OUTPUT_WIDTH)
-        # self.streammux.set_property('height', MUXER_OUTPUT_HEIGHT)
-        # #Set pgie configuration file paths
-        # pgie.set_property('config-file-path', PGIE_CONFIG_FILE)
-
-        # #Set properties of tracker
-        # config = configparser.ConfigParser()
-        # config.read(TRACKER_CONFIG_FILE)
-        # config.sections()
-
-        # # 设置保留帧数
-        # # tracker.set_property("max-shadow-tracking-duration", 20)
-        # for key in config['tracker']:
-        #     if key == 'tracker-width' :
-        #         tracker_width = config.getint('tracker', key)
-        #         tracker.set_property('tracker-width', tracker_width)
-        #     if key == 'tracker-height' :
-        #         tracker_height = config.getint('tracker', key)
-        #         tracker.set_property('tracker-height', tracker_height)
-        #     if key == 'gpu-id' :
-        #         tracker_gpu_id = config.getint('tracker', key)
-        #         tracker.set_property('gpu_id', tracker_gpu_id)
-        #     if key == 'll-lib-file' :
-        #         tracker_ll_lib_file = config.get('tracker', key)
-        #         tracker.set_property('ll-lib-file', tracker_ll_lib_file)
-        #     if key == 'll-config-file' :
-        #         tracker_ll_config_file = config.get('tracker', key)
-        #         tracker.set_property('ll-config-file', tracker_ll_config_file)
-        #     if key == 'enable-batch-process' :
-        #         tracker_enable_batch_process = config.getint('tracker', key)
-        #         tracker.set_property('enable_batch_process', tracker_enable_batch_process)
-
-        # #Set necessary properties of the nvinfer element, the necessary ones are:
-        # pgie_batch_size=pgie.get_property("batch-size")
-        # if(pgie_batch_size < MAX_NUM_SOURCES):
-        #     self.logging.info("WARNING: Overriding infer-config batch-size",pgie_batch_size," with number of sources ", Plumber.num_sources," \n")
-        # pgie.set_property("batch-size",MAX_NUM_SOURCES)
-
-        # self.logging.info("Adding elements to Pipeline \n")
-        # self.pipeline.add(pgie)
-        # self.pipeline.add(tracker)
-        # # self.pipeline.add(self.nvstreamdemux)
-        # self.pipeline.add(tee)
-        # self.pipeline.add(tee_q0)
-        # # self.pipeline.add(tee_q1)
-        # self.pipeline.add(tiler)
-        # self.pipeline.add(nvosd)
-        # self.pipeline.add(out_videoconvert)
-        # self.pipeline.add(out_filter)
-        # self.pipeline.add(sink)
-
-        # self.logging.info("Linking elements in the Pipeline \n")
-        # self.streammux.link(pgie)
-        # pgie.link(tracker)
-        # tracker.link(tee)
-
-        # tee.link(tiler)
-        # # tee_q0.link(tiler)
-
-        # # tee.link(tee_q1)
-        # # tee.link(self.nvstreamdemux)
-
-        
-        # tiler.link(nvosd)
-        # nvosd.link(sink)
-        # # out_videoconvert.link(out_filter)
-        # # out_filter.link(drmsink)
-        
-        
-        "=============================================================="
-        "=============================================================="
-
         # perf callback function to print fps every 5 sec
         GLib.timeout_add(5000, self.perf_data.perf_print_callback)
-
-        # filter1.link(nvstreamdemux)
 
         # create an event loop and feed gstreamer bus mesages to it
         loop = GLib.MainLoop()
@@ -1017,8 +693,8 @@ class Plumber():
         except Exception as error:
             self.logging.info("error:", error)
 
-        if Plumber.stand_by == False:
-            Plumber.stand_by = True            
+        # if Plumber.stand_by == False:
+        #     Plumber.stand_by = True            
 
         # cleanup
         self.logging.info("Exiting app\n")
