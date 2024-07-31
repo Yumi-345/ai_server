@@ -44,6 +44,9 @@ class Plumber():
         # self.tees = {}
 
         self.tracker_dict = {}
+        self.infer_pipeline_dict = {}
+        self.source_pipeline_dict = {}
+        self.source_flag_dict = {}
         self.tracker_lock = threading.Lock()
 
         self.perf_data = PERF_DATA(0)
@@ -154,19 +157,49 @@ class Plumber():
         vpad = des.get_static_pad("sink")
         pad.link(vpad)
 
+
+    def source_bus_call(self, bus, message, source_pipeline, channel_id):
+
+        t = message.type
+        if t == Gst.MessageType.EOS:
+            sys.stdout.write("************End-of-stream\n")
+            self.source_flag_dict[channel_id] = False
+            # time.sleep(5)
+            # start_pipeline(source_pipeline)
+            # loop.quit()
+        elif t==Gst.MessageType.WARNING:
+            err, debug = message.parse_warning()
+            sys.stderr.write("Warning: %s: %s\n" % (err, debug))
+        elif t == Gst.MessageType.ERROR:
+            err, debug = message.parse_error()
+            self.source_flag_dict[channel_id] = False
+            sys.stderr.write("Error********: %s: %s\n" % (err, debug))
+            # time.sleep(5)
+            # start_pipeline(source_pipeline)
+            # loop.quit()
+        elif t == Gst.MessageType.ELEMENT:
+            struct = message.get_structure()
+            #Check for stream-eos message
+            if struct is not None and struct.has_name("stream-eos"):
+                parsed, stream_id = struct.get_uint("stream-id")
+                if parsed:
+                    #Set eos status of stream to True, to be deleted in delete-sources
+                    self.logging.info("Got EOS from stream %d" % stream_id)
+        return True
+
     def bus_call(self, bus, message, loop):
         # global g_eos_list
         t = message.type
         if t == Gst.MessageType.EOS:
             sys.stdout.write("End-of-stream\n")
-            loop.quit()
+            # loop.quit()
         elif t==Gst.MessageType.WARNING:
             err, debug = message.parse_warning()
             sys.stderr.write("Warning: %s: %s\n" % (err, debug))
         elif t == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
             sys.stderr.write("Error: %s: %s\n" % (err, debug))
-            loop.quit()
+            # loop.quit()
         elif t == Gst.MessageType.ELEMENT:
             struct = message.get_structure()
             #Check for stream-eos message
@@ -179,54 +212,44 @@ class Plumber():
 
     def stop_release_source(self, source_id):
         #Attempt to change status of source to be released 
-        source_bin = self.pipeline.get_by_name(f"source-bin-{source_id}")
-        state_return = source_bin.set_state(Gst.State.NULL)
-        stop_pipeline(self.pipeline)
+        source_pipe = self.source_pipeline_dict[source_id]
+        state_return = source_pipe.set_state(Gst.State.NULL)
+        # stop_pipeline(self.pipeline)
 
         if state_return == Gst.StateChangeReturn.SUCCESS:
             self.logging.info("LBK_STATE CHANGE SUCCESS\n")
-            # pad_name = "sink_%u" % source_id
-            # self.logging.info(pad_name)
-            # #Retrieve sink pad to be released
-            # sinkpad = self.streammux.get_static_pad(pad_name)
-            # #Send flush stop event to the sink pad, then release from the streammux
-            # sinkpad.send_event(Gst.Event.new_flush_stop(False))
-            # self.streammux.release_request_pad(sinkpad)
-
-            # demux_padname = "src_%u" % source_id
-            # demux_srcpad = self.nvstreamdemux.get_static_pad(demux_padname)
-            # self.nvstreamdemux.release_request_pad(demux_srcpad)
-
-            self.logging.info("LBK_STATE CHANGE SUCCESS\n")
-            #Remove the source bin from the pipeline
-            self.pipeline.remove(source_bin)
-            # Plumber.num_sources -= 1
-            # self.pipeline.remove(self.g_sink_bin_list[source_id])
-            # self.pipeline.remove(self.g_queue_bin_list[source_id])
-            # self.pipeline.remove(self.g_convert_bin_list[source_id])
-            # self.pipeline.remove(self.g_filter_bin_list[source_id])
-
-            # self.tees.pop(source_id)
-            self.pipeline.remove(self.pipeline.get_by_name(f"tee_{source_id}"))
-            # self.pipeline.remove(self.pipeline.get_by_name(f"queue_channel_{source_id}"))
-            # self.pipeline.remove(self.pipeline.get_by_name(f"fakesink_channel_{source_id}"))
             for service_id in Plumber.task_channel_dict.keys():
                 if source_id in Plumber.task_channel_dict[service_id]:
-                    self.pipeline.remove(self.pipeline.get_by_name(f"channel{source_id}_task{service_id}"))
+                    infer_pipe = self.infer_pipeline_dict[service_id]
                     
-                    streammux = self.pipeline.get_by_name(f"Stream-muxer-{service_id}")
+                    appsrc = infer_pipe.get_by_name(f"appsrc_channel{source_id}_task{service_id}")
+                    if appsrc:
+                        infer_pipe.remove(appsrc)
+                        appsrc.set_state(Gst.State.NULL)
+                        # appsrc.unref()
+                    
+                    queue_right = infer_pipe.get_by_name(f"queue_channel{source_id}_task{service_id}_right")
+                    if queue_right:
+                        infer_pipe.remove(queue_right)
+                        queue_right.set_state(Gst.State.NULL)
+                        # queue_right.unref()
+                    
+                    streammux = infer_pipe.get_by_name(f"Stream-muxer-{service_id}")
                     if streammux:
                         streammux.release_request_pad(streammux.get_static_pad(f"sink_{source_id}"))
 
                     Plumber.task_channel_dict[service_id].remove(source_id)
-            try:
-                self.tracker_lock.acquire()
-                self.tracker_dict.clear()
-            except Exception as e:
-                self.logging.info(f"error in stop src clean tracker: {e}")
-            finally:
-                self.tracker_lock.release()
-            start_pipeline(self.pipeline)
+            
+            self.source_pipeline_dict.pop(source_id)
+            source_pipe.unref()
+            # try:
+            #     self.tracker_lock.acquire()
+            #     self.tracker_dict.clear()
+            # except Exception as e:
+            #     self.logging.info(f"error in stop src clean tracker: {e}")
+            # finally:
+            #     self.tracker_lock.release()
+            # start_pipeline(self.pipeline)
             return True
 
         elif state_return == Gst.StateChangeReturn.FAILURE:
@@ -234,46 +257,42 @@ class Plumber():
             return False
         
         elif state_return == Gst.StateChangeReturn.ASYNC:
-            # state_return = self.g_source_bin_list[source_id].get_state(Gst.CLOCK_TIME_NONE)
-            # pad_name = "sink_%u" % source_id
-            # self.logging.info(pad_name)
-            # sinkpad = self.streammux.get_static_pad(pad_name)
-            # # sinkpad.send_event(Gst.Event.new_flush_stop(False))
-            # self.streammux.release_request_pad(sinkpad)
-            self.logging.info("LBK_STATE CHANGE ASYNC\n")
-            self.pipeline.remove(source_bin)
-            # Plumber.num_sources -= 1
-            # self.pipeline.remove(self.g_sink_bin_list[source_id])
-            # self.pipeline.remove(self.g_queue_bin_list[source_id])
-            # self.pipeline.remove(self.g_convert_bin_list[source_id])
-            # self.pipeline.remove(self.g_filter_bin_list[source_id])
-
-            # self.tees.pop(source_id)
-            self.pipeline.remove(self.pipeline.get_by_name(f"tee_{source_id}"))
-            # self.pipeline.remove(self.pipeline.get_by_name(f"queue_channel_{source_id}"))
-            # self.pipeline.remove(self.pipeline.get_by_name(f"fakesink_channel_{source_id}"))
+            self.logging.info("LBK_STATE CHANGE SUCCESS\n")
             for service_id in Plumber.task_channel_dict.keys():
                 if source_id in Plumber.task_channel_dict[service_id]:
-                    self.pipeline.remove(self.pipeline.get_by_name(f"channel{source_id}_task{service_id}"))
+                    infer_pipe = self.infer_pipeline_dict[service_id]
                     
-                    streammux = self.pipeline.get_by_name(f"Stream-muxer-{service_id}")
+                    appsrc = infer_pipe.get_by_name(f"appsrc_channel{source_id}_task{service_id}")
+                    if appsrc:
+                        infer_pipe.remove(appsrc)
+                        appsrc.set_state(Gst.State.NULL)
+                        # appsrc.unref()
+                    
+                    queue_right = infer_pipe.get_by_name(f"queue_channel{source_id}_task{service_id}_right")
+                    if queue_right:
+                        infer_pipe.remove(queue_right)
+                        queue_right.set_state(Gst.State.NULL)
+                        # queue_right.unref()
+                    
+                    streammux = infer_pipe.get_by_name(f"Stream-muxer-{service_id}")
                     if streammux:
                         streammux.release_request_pad(streammux.get_static_pad(f"sink_{source_id}"))
-                    
-                    Plumber.task_channel_dict[service_id].remove(source_id)
-        
-            try:
-                self.tracker_lock.acquire()
-                self.tracker_dict.clear()
-            except Exception as e:
-                self.logging.info(f"error in stop src clean tracker: {e}")
-            finally:
-                self.tracker_lock.release()
-            start_pipeline(self.pipeline)
 
+                    Plumber.task_channel_dict[service_id].remove(source_id)
+            
+            self.source_pipeline_dict.pop(source_id)
+            source_pipe.unref()
+            # try:
+            #     self.tracker_lock.acquire()
+            #     self.tracker_dict.clear()
+            # except Exception as e:
+            #     self.logging.info(f"error in stop src clean tracker: {e}")
+            # finally:
+            #     self.tracker_lock.release()
+            # start_pipeline(self.pipeline)
             return True
 
-    def create_source_bin(self,source_id,source_url):
+    def create_source_bin(self,source_pipeline, source_id,source_url):
         self.logging.info("Creating source bin")
 
         # Create a source GstBin to abstract this bin's content from the rest of the
@@ -283,7 +302,7 @@ class Plumber():
         nbin = Gst.Bin.new(bin_name)
         if not nbin:
             self.logging.info(" Unable to create source bin \n")
-        self.pipeline.add(nbin)
+        source_pipeline.add(nbin)
 
         src = Gst.ElementFactory.make("rtspsrc", "src-"+str(source_id))
         src.set_property("location", source_url)
@@ -310,13 +329,13 @@ class Plumber():
         nvvideoconvert = self.make_element("nvvideoconvert", source_id)
         Gst.Bin.add(nbin,nvvideoconvert)
 
-        caps1 = Gst.Caps.from_string("video/x-raw(memory:NVMM), format=RGBA")
+        caps1 = Gst.Caps.from_string("video/x-raw(memory:NVMM), format=RGBA, width=1920, height=1080")
         filter = self.make_element("capsfilter", source_id)
         filter.set_property("caps", caps1)
         Gst.Bin.add(nbin,filter)
 
         tee = Gst.ElementFactory.make("tee", f"tee_{source_id}")
-        self.pipeline.add(tee) # 特别注意这里，因为tee已经需要放在bin的外部了，所以这里是添加到pipeline里边而不是nbin
+        source_pipeline.add(tee) # 特别注意这里，因为tee已经需要放在bin的外部了，所以这里是添加到pipeline里边而不是nbin
         # Gst.Bin.add(nbin,tee)
 
         ###########################################################################
@@ -357,19 +376,28 @@ class Plumber():
         # self.tees[source_id] = tee
 
         return nbin
+        # return source_pipeline
 
 
     def add_task(self, f):
         def wrapper(*args):
             try:
-                    
+
                 service_id = args[0]
                 dev_id = args[1]
                 root = args[2]
 
-                self.pipeline.set_state(Gst.State.PAUSED)
-                # stop_pipeline(self.pipeline)
-                time.sleep(0.5)
+                pipeline = Gst.Pipeline.new(f"infer_pipe{service_id}")
+
+                bus = pipeline.get_bus()
+                bus.add_signal_watch()
+                bus.connect ("message", self.bus_call, None)    
+
+
+
+                pipeline.set_state(Gst.State.PAUSED)
+                # stop_pipeline(pipeline)
+                # time.sleep(0.5)
 
                 self.logging.info(f"Creating streammux_{service_id}\n ")
                 # Create nvstreammux instance to form batches from one or more sources.
@@ -382,8 +410,14 @@ class Plumber():
                 streammux.set_property("batch-size", 16)           # important!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 streammux.set_property("gpu_id", dev_id)
                 streammux.set_property("live-source", 1)
+                
+                #Set streammux width and height
+                streammux.set_property('width', MUXER_OUTPUT_WIDTH)
+                streammux.set_property('height', MUXER_OUTPUT_HEIGHT)
 
-                self.pipeline.add(streammux)
+                streammux.set_property("sync-inputs", True) #很重要！！！！！！！！！！！！！！！！
+
+                pipeline.add(streammux)
 
                 self.logging.info("Creating Pgie \n ")
                 pgie = Gst.ElementFactory.make("nvinfer", f"primary_inference{service_id}")
@@ -412,11 +446,7 @@ class Plumber():
                 # sink.set_property("signal-handoffs", True)
                 # sink.set_property("sync", False)
                 sink.set_property('enable-last-sample', 0)
-                    
-                streammux.set_property('live-source', 1)
-                #Set streammux width and height
-                streammux.set_property('width', MUXER_OUTPUT_WIDTH)
-                streammux.set_property('height', MUXER_OUTPUT_HEIGHT)
+
                 #Set pgie configuration file paths
                 pgie.set_property('config-file-path', PGIE_CONFIG_FILE)
 
@@ -452,23 +482,25 @@ class Plumber():
                 # pgie.set_property("batch-size",MAX_NUM_SOURCES)
 
                 self.logging.info("Adding elements to Pipeline \n")
-                self.pipeline.add(pgie)
-                self.pipeline.add(tracker)
-                self.pipeline.add(sink)
+                pipeline.add(pgie)
+                pipeline.add(tracker)
+                pipeline.add(sink)
 
                 self.logging.info("Linking elements in the Pipeline \n")
                 streammux.link(pgie)
                 pgie.link(tracker)
                 tracker.link(sink)
 
-                self.pipeline.set_state(Gst.State.PLAYING)
-                # start_pipeline(self.pipeline)
+                pipeline.set_state(Gst.State.PLAYING)
+                # start_pipeline(pipeline)
                 # time.slppe(0.5)
+                self.infer_pipeline_dict[service_id] = pipeline
                 return True 
             except Exception as e:
                 self.logging.info(f"error in add task {service_id}:{e}")
-                self.pipeline.set_state(Gst.State.PLAYING)
-                # start_pipeline(self.pipeline)
+                # self.pipeline.set_state(Gst.State.PLAYING)
+                # start_pipeline(pipeline)
+                # time.sleep(0.5)
                 return False
         return wrapper
 
@@ -476,36 +508,47 @@ class Plumber():
         def wrapper(*args):
             service_id = args[0]
             try:
-                # self.pipeline.set_state(Gst.State.PAUSED)
-                stop_pipeline(self.pipeline)
-                # time.sleep(0.5)
-                self.pipeline.remove(self.pipeline.get_by_name(f"Stream-muxer-{service_id}"))
-                self.pipeline.remove(self.pipeline.get_by_name(f"primary_inference{service_id}"))
-                self.pipeline.remove(self.pipeline.get_by_name(f"tracker{service_id}"))
-                self.pipeline.remove(self.pipeline.get_by_name(f"task_fakesink_{service_id}"))
+                infer_pipe = self.infer_pipeline_dict[service_id]
+                stop_pipeline(infer_pipe)
+
                 for channel_id in Plumber.task_channel_dict[service_id]:
-                    self.pipeline.remove(self.pipeline.get_by_name(f"channel{channel_id}_task{service_id}"))
-                    
-                    tee = self.pipeline.get_by_name(f"tee_{channel_id}")
-                    
+                    source_pipe = self.source_pipeline_dict[channel_id]
+
+                    # *********************此处有可能需要先暂停视频流*****************
+                    tee = source_pipe.get_by_name(f"tee_{channel_id}")
                     if tee:
-                        tee.release_request_pad(tee.get_static_pad(f"src_{service_id+1}"))
-                
-                try:
-                    self.tracker_lock.acquire()
-                    self.tracker_dict.clear()
-                except Exception as e:
-                    self.logging.info(f"error in remove task clean tracker: {e}")
-                finally:
-                    self.tracker_lock.release()
+                        tee.release_request_pad(tee.get_static_pad(f"src_{service_id}"))
+
+                    queue_left = source_pipe.get_by_name(f"queue_channel{channel_id}_task{service_id}_left")
+                    if queue_left:
+                        source_pipe.remove(queue_left)
+                        queue_left.set_state(Gst.State.NULL)
+                        # queue_left.unref()
+
+                    appsink = source_pipe.get_by_name(f"appsink_channel{channel_id}_task{service_id}")
+                    if appsink:
+                        source_pipe.remove(appsink)
+                        appsink.set_state(Gst.State.NULL)
+                        # appsink.unref()
+
+                self.infer_pipeline_dict.pop(service_id)
+                infer_pipe.unref()
+
+                # try:
+                #     self.tracker_lock.acquire()
+                #     self.tracker_dict.clear()
+                # except Exception as e:
+                #     self.logging.info(f"error in remove task clean tracker: {e}")
+                # finally:
+                #     self.tracker_lock.release()
 
                 # self.pipeline.set_state(Gst.State.PLAYING)
-                start_pipeline(self.pipeline)
+                # start_pipeline(self.pipeline)
                 return True
             except Exception as e:
                 self.logging.info(f"error in remove tasks: {e}")
                 # self.pipeline.set_state(Gst.State.PLAYING)
-                start_pipeline(self.pipeline)
+                # start_pipeline(self.pipeline)
                 return False
         return wrapper
 
@@ -514,15 +557,23 @@ class Plumber():
             channel_id = args[0]
             channel_name = args[1]
             channel_url = args[2]
+            self.source_flag_dict.clear()
             try:
-                self.pipeline.set_state(Gst.State.PAUSED)
+                # self.pipeline.set_state(Gst.State.PAUSED)
                 # stop_pipeline(self.pipeline)
-                time.sleep(0.5)
+                # time.sleep(0.5)
 
+                source_pipeline = Gst.Pipeline.new(f"source_pipe_{channel_id}")
+                source_pipeline.set_state(Gst.State.PAUSED)
+
+                bus = source_pipeline.get_bus()
+                bus.add_signal_watch()
+                bus.connect("message", self.source_bus_call, source_pipeline, channel_id)
+                
                 self.logging.info("Calling Start %d " % channel_id)
 
                 #Create a uridecode bin with the chosen source id
-                source_bin = self.create_source_bin(channel_id, channel_url)
+                source_bin = self.create_source_bin(source_pipeline, channel_id, channel_url)
 
                 if (not source_bin):
                     sys.stderr.write("Failed to create source bin. Exiting.")
@@ -532,7 +583,9 @@ class Plumber():
                 # self.g_source_bin_list[channel_id] = source_bin
 
                 #Set state of source bin to playing
-                state_return = source_bin.set_state(Gst.State.PLAYING)
+                state_return = source_pipeline.set_state(Gst.State.PLAYING)
+                # time.sleep(0.5)
+
 
                 if state_return == Gst.StateChangeReturn.SUCCESS:
                     self.logging.info("STATE CHANGE SUCCESS\n")
@@ -546,14 +599,21 @@ class Plumber():
                 elif state_return == Gst.StateChangeReturn.NO_PREROLL:
                     self.logging.info("STATE CHANGE NO PREROLL\n")
 
-                self.pipeline.set_state(Gst.State.PLAYING)
+                # self.pipeline.set_state(Gst.State.PLAYING)
                 # start_pipeline(self.pipeline)
-                
-                self.perf_data.add_stream(channel_id, source_bin)
+                if channel_id in self.source_flag_dict.keys():
+                    if not self.source_flag_dict[channel_id]:
+                        source_pipeline.set_state(Gst.State.NULL)
+                        return False       
+
+                self.perf_data.add_stream(channel_id)
+                self.source_pipeline_dict[channel_id] = source_pipeline
+
+                # time.sleep(0.5)
                 return True
             except Exception as e:
                 self.logging.info(f"error in enable: {e}")
-                self.pipeline.set_state(Gst.State.PLAYING)
+                # self.pipeline.set_state(Gst.State.PLAYING)
                 # start_pipeline(self.pipeline)
                 return False
             
@@ -572,7 +632,7 @@ class Plumber():
                     return True
             except Exception as e:
                 self.logging.info(f"error in disable channel_{channel_id}: {e}")
-                return False
+                return True #即使没有成功，链接结构大概率也已被破坏
         return wrapper 
 
     def bind_chan_task(self,f):
@@ -583,34 +643,83 @@ class Plumber():
             channel_name = args[2]
             config = args[3]
             try:
-                # self.pipeline.set_state(Gst.State.PAUSED)
-                # self.pipeline.set_state(Gst.State.NULL)
-                # time.sleep(0.5)
-                # stop_pipeline(self.g_source_bin_list[channel_id])
-                stop_pipeline(self.pipeline)
-                streammux = self.pipeline.get_by_name(f"Stream-muxer-{service_id}")
-                if streammux:
-                    sinkpad = streammux.get_request_pad(f"sink_{channel_id}")
-                
-                queue = Gst.ElementFactory.make("queue", f"channel{channel_id}_task{service_id}")
-                self.pipeline.add(queue)
+                infer_pipe = self.infer_pipeline_dict[service_id]
+                source_pipe = self.source_pipeline_dict[channel_id]
 
-                tee = self.pipeline.get_by_name(f"tee_{channel_id}")
+                stop_pipeline(source_pipe, infer_pipe)
+                
+                # #####################################>>>获取元素<<<###################################
+                tee = source_pipe.get_by_name(f"tee_{channel_id}")
+
+                appsink = Gst.ElementFactory.make("appsink", f"appsink_channel{channel_id}_task{service_id}")
+                appsink.set_property('emit-signals', True)
+                appsink.set_property('sync', False)
+                # appsink.set_property('async', True)
+                appsink.set_property("enable-last-sample", False)
+                
+                appsrc = Gst.ElementFactory.make("appsrc", f"appsrc_channel{channel_id}_task{service_id}")
+                # appsrc.set_property('is-live', True)
+                # appsrc.set_property('format', Gst.Format.TIME)
+                # appsrc.set_property("block", True)
+                appsrc.set_property("caps", Gst.Caps.from_string("video/x-raw(memory:NVMM), format=RGBA, width=1920, height=1080")) #非常重要！！！！！！！
+
+                # tee后边也要一个queue，不然在对新任务进行绑定时，没有缓冲造成重启失败
+                queue_left = Gst.ElementFactory.make("queue", f"queue_channel{channel_id}_task{service_id}_left")
+                queue_right = Gst.ElementFactory.make("queue", f"queue_channel{channel_id}_task{service_id}_right")
+
+                streammux = infer_pipe.get_by_name(f"Stream-muxer-{service_id}")
+                # #############################>>>获取元素结束<<<###########################
+
+                source_pipe.add(appsink)
+                source_pipe.add(queue_left)
+                infer_pipe.add(appsrc)
+                infer_pipe.add(queue_right)
+
+                # ################################>>>获取pad<<<#############################################
                 tee_src_pad = tee.get_request_pad(f"src_{service_id}")
 
-                queue_sink_pad = queue.get_static_pad("sink")
-                queue_src_pad = queue.get_static_pad("src")
+                appsink_sink_pad = appsink.get_static_pad("sink")
+                appsrc_src_pad = appsrc.get_static_pad("src")
 
-                tee_src_pad.link(queue_sink_pad)
-                queue_src_pad.link(sinkpad)
+                queue_left_sink_pad = queue_left.get_static_pad("sink")
+                queue_left_src_pad = queue_left.get_static_pad("src")
 
-                # self.pipeline.set_state(Gst.State.PLAYING)
-                # start_pipeline(self.g_source_bin_list[channel_id])
-                start_pipeline(self.pipeline)
+                queue_right_sink_pad = queue_right.get_static_pad("sink")
+                queue_right_src_pad = queue_right.get_static_pad("src")
+
+                if streammux:
+                    sinkpad = streammux.get_request_pad(f"sink_{channel_id}")
+                # ################################>>>获取pad结束<<<###########################################                
+
+
+                tee_src_pad.link(queue_left_sink_pad)
+                queue_left_src_pad.link(appsink_sink_pad)
+
+                def on_new_sample(sink, src):
+                    sample = sink.emit("pull-sample")
+                    buffer = sample.get_buffer()
+                    # 将buffer推送到appsrc
+                    src.emit("push-buffer", buffer)
+                    return Gst.FlowReturn.OK
+                
+                appsink.connect("new-sample", on_new_sample, appsrc)
+
+                appsrc_src_pad.link(queue_right_sink_pad)
+                queue_right_src_pad.link(sinkpad)
+
+                try:
+                    self.tracker_lock.acquire()
+                    self.tracker_dict.clear()
+                except Exception as e:
+                    self.logging.info(f"error in remove task clean tracker: {e}")
+                finally:
+                    self.tracker_lock.release()
+                
+                start_pipeline(source_pipe, infer_pipe)
                 return True
             except Exception as e:
                 self.logging.info(f"error in bind: {e}")
-                start_pipeline(self.pipeline)
+                start_pipeline(source_pipe, infer_pipe)
                 return False
         return wrapper
     
@@ -619,17 +728,38 @@ class Plumber():
             service_id = args[0]
             channel_id = args[1]
             try:
-                # stop_pipeline(self.g_source_bin_list[channel_id])
-                stop_pipeline(self.pipeline)
-                queue = self.pipeline.get_by_name(f"channel{channel_id}_task{service_id}")
+                infer_pipe = self.infer_pipeline_dict[service_id]
+                source_pipe = self.source_pipeline_dict[channel_id]
 
-                if queue:
-                    # remove_element_from_pipeline(self.pipeline, queue)
-                    self.pipeline.remove(queue)
-                    # queue.set_state(Gst.State.NULL)
+                # stop_pipeline(source_pipe, infer_pipe)
 
-                tee = self.pipeline.get_by_name(f"tee_{channel_id}")
-                streammux = self.pipeline.get_by_name(f"Stream-muxer-{service_id}")
+                tee = source_pipe.get_by_name(f"tee_{channel_id}")
+                queue_left = source_pipe.get_by_name(f"queue_channel{channel_id}_task{service_id}_left")
+                appsink = source_pipe.get_by_name(f"appsink_channel{channel_id}_task{service_id}")
+                
+                appsrc = infer_pipe.get_by_name(f"appsrc_channel{channel_id}_task{service_id}")
+                queue_right = infer_pipe.get_by_name(f"queue_channel{channel_id}_task{service_id}_right")
+                streammux = infer_pipe.get_by_name(f"Stream-muxer-{service_id}")
+                
+                if queue_left:
+                    source_pipe.remove(queue_left)
+                    queue_left.set_state(Gst.State.NULL)
+                    # queue_left.unref()
+
+                if appsink:
+                    source_pipe.remove(appsink)
+                    appsink.set_state(Gst.State.NULL)
+                    # appsink.unref()
+
+                if appsrc:
+                    infer_pipe.remove(appsrc)
+                    appsrc.set_state(Gst.State.NULL)
+                    # appsrc.unref()
+
+                if queue_right:
+                    infer_pipe.remove(queue_right)
+                    queue_right.set_state(Gst.State.NULL)
+                    # queue_right.unref()
 
                 tee_src_pad = tee.get_static_pad(f"src_{service_id}")
                 if tee_src_pad:
@@ -639,23 +769,21 @@ class Plumber():
                 if sinkpad:
                     streammux.release_request_pad(sinkpad)
 
-                try:
-                    self.tracker_lock.acquire()
-                    self.tracker_dict.clear()
-                except Exception as e:
-                    self.logging.info(f"error in unbind clean tracker: {e}")
-                finally:
-                    self.tracker_lock.release()
+                # try:
+                #     self.tracker_lock.acquire()
+                #     self.tracker_dict.clear()
+                # except Exception as e:
+                #     self.logging.info(f"error in unbind clean tracker: {e}")
+                # finally:
+                #     self.tracker_lock.release()
 
-                # start_pipeline(self.g_source_bin_list[channel_id])
-                start_pipeline(self.pipeline)
+                # start_pipeline(source_pipe, infer_pipe)
                     
                 return True
             except Exception as e:
                 self.logging.info(f"error in unbind task{service_id} channel{channel_id}: {e}")
-                # self.pipeline.set_state(Gst.State.PLAYING)
-                return False
-
+                start_pipeline(source_pipe, infer_pipe)
+                return True #即使失败，链接结构也被破坏了
         return wrapper
 
     def run(self,):
@@ -666,27 +794,27 @@ class Plumber():
 
         # Create gstreamer elements */
         # Create Pipeline element that will form a connection of other elements
-        self.logging.info("Creating Pipeline \n ")
-        self.pipeline = Gst.Pipeline()
+        # self.logging.info("Creating Pipeline \n ")
+        # self.pipeline = Gst.Pipeline.new("infer_pipe")
 
-        if not self.pipeline:
-            sys.stderr.write(" Unable to create Pipeline \n")
+        # if not self.pipeline:
+        #     sys.stderr.write(" Unable to create Pipeline \n")
 
         # perf callback function to print fps every 5 sec
         GLib.timeout_add(5000, self.perf_data.perf_print_callback)
 
         # create an event loop and feed gstreamer bus mesages to it
         loop = GLib.MainLoop()
-        bus = self.pipeline.get_bus()
-        bus.add_signal_watch()
-        bus.connect ("message", self.bus_call, loop)    
+        # bus = self.pipeline.get_bus()
+        # bus.add_signal_watch()
+        # bus.connect ("message", self.bus_call, loop)    
 
-        self.pipeline.set_state(Gst.State.PAUSED)
+        # self.pipeline.set_state(Gst.State.PAUSED)
 
-        self.logging.info("Starting pipeline \n")
+        # self.logging.info("Starting pipeline \n")
 
         # start play back and listed to events		
-        self.pipeline.set_state(Gst.State.PLAYING)
+        # self.pipeline.set_state(Gst.State.PLAYING)
 
         try:
             loop.run()

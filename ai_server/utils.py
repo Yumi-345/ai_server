@@ -9,7 +9,7 @@ from gi.repository import Gst, GLib
 import time
 import pyds
 
-
+TIME_OUT = 3
 
 def check_pipeline_elements(pipeline):
     for element in pipeline.iterate_elements():
@@ -21,112 +21,117 @@ def check_pipeline_elements(pipeline):
     return True
 
 
-def stop_pipeline(pipeline, timeout=5):
-    if pipeline:
-        start_time = time.time()
-        pipeline.set_state(Gst.State.PAUSED)
-        while True:
-            state_change_return, current, pending = pipeline.get_state(1 * Gst.SECOND)
-            # print(f"Current pipeline state: {current}, Pending state: {pending}")
-            if current == Gst.State.PAUSED:
-                print("Pipeline paused successfully.")
-                break
-                        
-            if state_change_return == Gst.StateChangeReturn.ASYNC:
-                print("Pipeline paused async")
-                break
+def stop_pipeline(*args):
+    for pipeline in args:
+        if pipeline:
+            start_time = time.time()
+            pipeline.set_state(Gst.State.PAUSED)
+            while True:
+                state_change_return, current, pending = pipeline.get_state(1 * Gst.SECOND)
+                # print(f"Current pipeline state: {current}, Pending state: {pending}")
+                if current == Gst.State.PAUSED:
+                    print("Pipeline paused successfully.")
+                    break
+                            
+                if state_change_return == Gst.StateChangeReturn.ASYNC:
+                    print("Pipeline paused async")
+                    break
 
-            if time.time() - start_time > timeout:
-                print("Failed to pause pipeline within the timeout period.")
-                break
+                if time.time() - start_time > TIME_OUT:
+                    print("Failed to pause pipeline within the timeout period.")
+                    break
 
-        pipeline.set_state(Gst.State.READY)
-        while True:
-            state_change_return, current, pending = pipeline.get_state(1 * Gst.SECOND)
-            # print(f"Current pipeline state: {current}, Pending state: {pending}")
-            if current == Gst.State.READY:
-                print("Pipeline ready successfully.")
-                break
-            
-            if state_change_return == Gst.StateChangeReturn.ASYNC:
-                print("Pipeline ready async")
-                break
+            pipeline.set_state(Gst.State.READY)
+            while True:
+                state_change_return, current, pending = pipeline.get_state(1 * Gst.SECOND)
+                # print(f"Current pipeline state: {current}, Pending state: {pending}")
+                if current == Gst.State.READY:
+                    print("Pipeline ready successfully.")
+                    break
+                
+                if state_change_return == Gst.StateChangeReturn.ASYNC:
+                    print("Pipeline ready async")
+                    break
 
-            if time.time() - start_time > timeout:
-                print("Failed to ready pipeline within the timeout period.")
-                break
+                if time.time() - start_time > TIME_OUT:
+                    print("Failed to ready pipeline within the timeout period.")
+                    break
 
-        pipeline.set_state(Gst.State.NULL)
-        while True:
-            state_change_return, current, pending = pipeline.get_state(1 * Gst.SECOND)
-            # print(f"Current pipeline state: {current}, Pending state: {pending}")
-            if current == Gst.State.NULL:
-                print("Pipeline stopped successfully.")
-                return True
-                        
-            if state_change_return == Gst.StateChangeReturn.ASYNC:
-                print("Pipeline stopped async")
-                return True
+            pipeline.set_state(Gst.State.NULL)
+            while True:
+                state_change_return, current, pending = pipeline.get_state(1 * Gst.SECOND)
+                # print(f"Current pipeline state: {current}, Pending state: {pending}")
+                if current == Gst.State.NULL:
+                    print("Pipeline stopped successfully.")
+                    break
+                            
+                if state_change_return == Gst.StateChangeReturn.ASYNC:
+                    print("Pipeline stopped async")
+                    break
 
-            if time.time() - start_time > timeout:
-                print("Failed to stop pipeline within the timeout period.")
-                return False
+                if time.time() - start_time > TIME_OUT:
+                    print("Failed to stop pipeline within the timeout period.")
+                    break
 
 # Function to start the pipeline
-def start_pipeline(pipeline, timeout=5):
-    if pipeline:
-        start_time = time.time()
-        
-        pipeline.set_state(Gst.State.READY)
-        while True:
-            state_change_return, current, pending = pipeline.get_state(1 * Gst.SECOND)
-            # print(f"Current pipeline state: {current}, Pending state: {pending}")
-            if current == Gst.State.READY:
-                print("Pipeline ready successfully.")
-                break
-                                    
-            if state_change_return == Gst.StateChangeReturn.ASYNC:
-                print("Pipeline ready async")
-                break
-
-            if time.time() - start_time > timeout:
-                print("Failed to ready pipeline within the timeout period.")
-                break
-
-        pipeline.set_state(Gst.State.PAUSED)
-        while True:
-            state_change_return, current, pending = pipeline.get_state(0.1 * Gst.SECOND)
-            # print(f"Current pipeline state: {current}, Pending state: {pending}")
-            if current == Gst.State.PAUSED:
-                print("Pipeline paused successfully.")
-                break
-                                    
-            if state_change_return == Gst.StateChangeReturn.ASYNC:
-                print("Pipeline paused async")
-                break
-
-            if time.time() - start_time > timeout:
-                print("Failed to pause pipeline within the timeout period.")
-                break
-        
-        pipeline.set_state(Gst.State.PLAYING)
-        while True:
-            state_change_return, current, pending = pipeline.get_state(1 * Gst.SECOND)
-            # print(f"Current pipeline state: {current}, Pending state: {pending}")
-            if current == Gst.State.PLAYING:
-                print("Pipeline started successfully.")
-                return True
+def start_pipeline(*args):
+    is_async = False
+    for pipeline in args:
+        if pipeline:
+            start_time = time.time()
             
-            if state_change_return == Gst.StateChangeReturn.ASYNC:
-                print("Pipeline start async")
-                # time.sleep(5)
-                return True
+            pipeline.set_state(Gst.State.READY)
+            while True:
+                state_change_return, current, pending = pipeline.get_state(1 * Gst.SECOND)
+                # print(f"Current pipeline state: {current}, Pending state: {pending}")
+                if current == Gst.State.READY:
+                    print("Pipeline ready successfully.")
+                    break
+                                        
+                if state_change_return == Gst.StateChangeReturn.ASYNC:
+                    print("Pipeline ready async")
+                    break
 
-            if time.time() - start_time > timeout:
-                print("Failed to start pipeline within the timeout period.")
-                if not check_pipeline_elements(pipeline):
-                    print("One or more elements failed to change state.")
-                return False
+                if time.time() - start_time > TIME_OUT:
+                    print("Failed to ready pipeline within the timeout period.")
+                    break
+
+            pipeline.set_state(Gst.State.PAUSED)
+            while True:
+                state_change_return, current, pending = pipeline.get_state(0.1 * Gst.SECOND)
+                # print(f"Current pipeline state: {current}, Pending state: {pending}")
+                if current == Gst.State.PAUSED:
+                    print("Pipeline paused successfully.")
+                    break
+                                        
+                if state_change_return == Gst.StateChangeReturn.ASYNC:
+                    print("Pipeline paused async")
+                    break
+
+                if time.time() - start_time > TIME_OUT:
+                    print("Failed to pause pipeline within the timeout period.")
+                    break
+            
+            pipeline.set_state(Gst.State.PLAYING)
+            while True:
+                state_change_return, current, pending = pipeline.get_state(1 * Gst.SECOND)
+                # print(f"Current pipeline state: {current}, Pending state: {pending}")
+                if current == Gst.State.PLAYING:
+                    print("Pipeline started successfully.")
+                    break
+                
+                if state_change_return == Gst.StateChangeReturn.ASYNC:
+                    print("Pipeline start async")
+                    # is_async = True
+                    # break
+
+                if time.time() - start_time > TIME_OUT:
+                    print("Failed to start pipeline within the timeout period.")
+                    if not check_pipeline_elements(pipeline):
+                        print("One or more elements failed to change state.")
+                    break
+    if is_async:
+        time.sleep(0.5)
 
 
 def remove_element_from_pipeline(pipeline, element, timeout=5):

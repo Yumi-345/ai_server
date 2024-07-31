@@ -142,6 +142,7 @@ class BoxTracker():
             self.stub.PublishEvent(event)
             return 1, "发送成功"
         except Exception as e:
-            print(f"error: {e}")
+            # print(f"error: {e}")
+            print(f"error: 服务端链接失败，未发送")
             return 1, "send failed"
 

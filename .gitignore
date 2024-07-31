@@ -5,3 +5,4 @@ ai_server/tmp
 ai_server/deepstream.log
 ai_server/*.jpg
 ai_server/output
+ai_server/__pycache__

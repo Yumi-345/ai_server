@@ -99,8 +99,8 @@ class TaskServiceImpl(CoreServiceServicer):
             channel_url = request.channel_url
             logging.info(f">>>accept enabel channel {channel_id}")
 
-            if not Plumber.stand_by:
-                time.sleep(2)
+            # if not Plumber.stand_by:
+            #     time.sleep(2)
                 # return global_pb2.CommRes(code=1, msg="not stand by")
 
             # 使用cv2尝试打开rtsp
@@ -152,6 +152,8 @@ class TaskServiceImpl(CoreServiceServicer):
             channel_id = request.channel_id
             channel_name = request.channel_name
             config = request.config
+            logging.info(f">>>accept bind channel {channel_id} with task {service_id}")
+
             if service_id in Plumber.task_list and channel_id in Plumber.channel_list:
                 if service_id in Plumber.task_channel_dict.keys():
                     if channel_id in Plumber.task_channel_dict[service_id]:

@@ -71,7 +71,7 @@ for index, url in enumerate(url_12_floor + url_9_floor):
 
 print("add task")
 stub.AddTask(AddTaskReq(service_id=0, dev_id=0, root="test"))
-# # stub.AddTask(AddTaskReq(service_id=1, dev_id=0, root="test"))
+# stub.AddTask(AddTaskReq(service_id=1, dev_id=0, root="test"))
 
 
 print("bind")
@@ -94,6 +94,12 @@ stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=3, channel_name="ç©·å
 # stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=1))
 # stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=2))
 # stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=3))
+
+# stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=0))
+# stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=1))
+# stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=2))
+# stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=3))
+
 
 # print("remove task")
 # stub.RemoveTask(RemoveTaskReq(service_id=0))
