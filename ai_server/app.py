@@ -41,7 +41,7 @@ from proto.alg_core.core_pb2_grpc import (
 from google.protobuf import empty_pb2
 
 
-LOCK = threading.Lock()
+LOCK = Plumber.service_lock
 
 class TaskServiceImpl(CoreServiceServicer):
 
@@ -199,28 +199,6 @@ class TaskServiceImpl(CoreServiceServicer):
         return empty_pb2.Empty()
 
 
-def serve():
-    server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=10)
-    )  # 创建gRPC服务器实例
-    add_CoreServiceServicer_to_server(
-        TaskServiceImpl(), server
-    )  # 将服务实现添加到服务器上
-
-    # 指定监听地址和服务端口
-    server.add_insecure_port("[::]:50051")
-
-    server.start()  # 启动服务器
-    logging.info("Server started on port 50051...")
-    server.wait_for_termination()  # 阻塞等待，直到服务器关闭
-
-t = threading.Thread(target=serve, args=())
-t.start()
-
-# ======================================grpc_main=====================================end
-
-
-# =====================程序开始执行=================================
 plumber = Plumber(logging)
 
 @plumber.add_task
@@ -252,3 +230,24 @@ def unbind_chan_task():
 # @plumber.get_media_info
 # def get_media_info():
 #     pass
+
+
+while True:
+    try:
+        server = grpc.server(
+            futures.ThreadPoolExecutor(max_workers=10)
+        )  # 创建gRPC服务器实例
+        add_CoreServiceServicer_to_server(
+            TaskServiceImpl(), server
+        )  # 将服务实现添加到服务器上
+
+        # 指定监听地址和服务端口
+        server.add_insecure_port("[::]:5005")
+
+        server.start()  # 启动服务器
+        logging.info("Server started on port 50051...")
+        server.wait_for_termination()  # 阻塞等待，直到服务器关闭
+    except Exception as e:
+        logging.info(f"服务异常关闭，重启服务，请重新配置。。。")
+        print(f"********************error>>>: {e}***********************")
+

@@ -8,13 +8,51 @@ gi.require_version('Gst', '1.0')
 from gi.repository import Gst, GLib
 import time
 import pyds
+import threading
+
 
 TIME_OUT = 3
+
+class SafeLock:
+    def __init__(self, time_out=10):
+        self.lock = threading.Lock()
+        self.lock_held = threading.Event()
+        self.lock_flag = False
+        self.time_out = time_out
+        self.lock_time = time.time()
+        t = threading.Thread(target=self.monitor_lock)
+        t.setDaemon(True)
+        t.start()
+
+    def monitor_lock(self,):
+        while True:
+            if time.time() - self.lock_time < self.time_out:
+                time.sleep(0.5)
+            elif self.lock_held.is_set():
+                    print(f">>>锁超时{self.time_out}, 手动释放====")
+                    self.release()
+            else:
+                time.sleep(self.time_out/2)
+
+    def acquire(self):
+        self.lock.acquire()
+        self.lock_time = time.time()
+        self.lock_held.set()
+
+    def release(self):
+        if self.lock_held.is_set():
+            try:
+                self.lock.release()
+                self.lock_held.clear()
+                print(">>>锁释放=======")
+            except Exception as e:
+                print(f"******************error in release lock***************:\n{e}")
+
 
 def check_pipeline_elements(pipeline):
     for element in pipeline.iterate_elements():
         state_change_return, current, pending = element.get_state(1 * Gst.SECOND)
-        # print(f"Element {element.get_name()} state: {current}, Pending state: {pending}")
+        print(f"Element {element.get_name()} state: {current}, Pending state: {pending}")
         if state_change_return == Gst.StateChangeReturn.FAILURE:
             print(f"Element {element.get_name()} failed to change state.")
             return False
@@ -75,7 +113,6 @@ def stop_pipeline(*args):
 
 # Function to start the pipeline
 def start_pipeline(*args):
-    is_async = False
     for pipeline in args:
         if pipeline:
             start_time = time.time()
@@ -122,37 +159,31 @@ def start_pipeline(*args):
                 
                 if state_change_return == Gst.StateChangeReturn.ASYNC:
                     print("Pipeline start async")
-                    # is_async = True
                     # break
 
                 if time.time() - start_time > TIME_OUT:
                     print("Failed to start pipeline within the timeout period.")
-                    if not check_pipeline_elements(pipeline):
-                        print("One or more elements failed to change state.")
+                    # if not check_pipeline_elements(pipeline):
+                    #     print("One or more elements failed to change state.")
                     break
-    if is_async:
-        time.sleep(0.5)
 
 
-def remove_element_from_pipeline(pipeline, element, timeout=5):
-    if pipeline and element:
-        pipeline.remove(element)
-        element.set_state(Gst.State.NULL)
-        start_time = time.time()
-        while True:
-            state_change_return, current, pending = element.get_state(1 * Gst.SECOND)
-            print(f"Current element state: {current}, Pending state: {pending}")
-            if current == Gst.State.NULL:
-                print(f"Element {element.get_name()} removed and set to NULL state.")
-                break
-                                    
-            if state_change_return == Gst.StateChangeReturn.ASYNC:
-                print(f"Element {element.get_name()} removed async and set to NULL state.")
-                break
 
-            if time.time() - start_time > timeout:
-                print(f"Failed to set element {element.get_name()} to NULL state within the timeout period.")
-                break
+def remove_element(pipeline, element):
+    # 将元素的状态设置为 NULL，停止元素的操作
+    element.set_state(Gst.State.NULL)
+    
+    # 处理动态 pad 的解绑
+    for pad in element.pads:
+        if pad.is_linked():
+            peer_pad = pad.get_peer()
+            pad.unlink(peer_pad)
+    
+    # 从管道中移除元素
+    pipeline.remove(element)
+    
+    # 释放 Python 对象的引用
+    del element
 
 
 def get_data_GPU(gst_buffer, frame_meta):

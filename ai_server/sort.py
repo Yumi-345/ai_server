@@ -118,7 +118,7 @@ class BoxTracker():
         if save:
             # 保存图片
             # cv2.imwrite(f"/root/apps/ai_server/output/stream{self.src_id}_frame{self.frame_number}_task{self.u_id}_roi.jpg", roi_data)
-            cv2.imwrite(f"/root/apps/ai_server/output/stream{self.src_id}_frame{self.frame_number}_task{self.u_id}_src.jpg", img_arr)
+            cv2.imwrite(f"/root/apps/ai_server/output2/stream{self.src_id}_frame{self.frame_number}_task{self.u_id}_src.jpg", img_arr)
 
         
         try:
@@ -132,14 +132,14 @@ class BoxTracker():
                 "channel_id" : self.src_id,
                 "object_id" : int(self.u_id.split("_")[2])
             }
-            event = Event(
-                event_type=EventType.EVENT_TYPE_OBJECT_CAPTURE,
-                json_str=f'{msg}',
-                srcs=[src_img_bytes],
-                trains=[b'None'],
-                rois=[roi_img_bytes]
-            )
-            self.stub.PublishEvent(event)
+            # event = Event(
+            #     event_type=EventType.EVENT_TYPE_OBJECT_CAPTURE,
+            #     json_str=f'{msg}',
+            #     srcs=[src_img_bytes],
+            #     trains=[b'None'],
+            #     rois=[roi_img_bytes]
+            # )
+            # self.stub.PublishEvent(event)
             return 1, "发送成功"
         except Exception as e:
             # print(f"error: {e}")
