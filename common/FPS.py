@@ -17,6 +17,9 @@
 
 import time
 from threading import Lock
+from datetime import datetime
+import subprocess
+
 start_time=time.time()
 
 fps_mutex = Lock()
@@ -60,7 +63,10 @@ class PERF_DATA:
 
     def perf_print_callback(self):
         self.perf_dict = {stream_index:stream.get_fps() for (stream_index, stream) in self.all_stream_fps.items()}
-        print ("\n**PERF: ", self.perf_dict, "\n")
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        result = subprocess.run(['free', '-h'], capture_output=True, text=True, check=True)
+        # print ("\n**PERF: ", self.perf_dict, "\n")
+        print (f"[{current_time}]:\n{result.stdout}**PERF: ", self.perf_dict, "\n\n")
         return True
     
     def update_fps(self, stream_index):

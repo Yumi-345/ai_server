@@ -4,5 +4,6 @@ ai_server/stream*
 ai_server/tmp
 ai_server/deepstream.log
 ai_server/*.jpg
-ai_server/output
-ai_server/__pycache__
+ai_server/output*
+*/__pycache__/
+# runtime_source_add_delete
