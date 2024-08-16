@@ -3,9 +3,8 @@ Author = "xuwj"
 import ctypes
 import cupy as cp
 import gi
-import configparser
 gi.require_version('Gst', '1.0')
-from gi.repository import Gst, GLib
+from gi.repository import Gst
 import time
 import pyds
 import threading
@@ -109,6 +108,8 @@ def stop_pipeline(*args):
 
                 if time.time() - start_time > TIME_OUT:
                     print("Failed to stop pipeline within the timeout period.")
+                    if not check_pipeline_elements(pipeline):
+                        print("One or more elements failed to change state.")
                     break
 
 # Function to start the pipeline
@@ -163,8 +164,8 @@ def start_pipeline(*args):
 
                 if time.time() - start_time > TIME_OUT:
                     print("Failed to start pipeline within the timeout period.")
-                    # if not check_pipeline_elements(pipeline):
-                    #     print("One or more elements failed to change state.")
+                    if not check_pipeline_elements(pipeline):
+                        print("One or more elements failed to change state.")
                     break
 
 

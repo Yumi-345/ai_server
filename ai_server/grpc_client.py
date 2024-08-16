@@ -28,8 +28,10 @@ from google.protobuf import empty_pb2
 
 MAX_MESSAGE_LENGTH = 256*1024*1024  # 可根据具体需求设置，此处设为256M
 
+PORT = 50051
+
 def create_channel():
-    return grpc.insecure_channel(target="127.0.0.1:5005")
+    return grpc.insecure_channel(target=f"127.0.0.1:{PORT}")
 
 # 创建客户端
 stub = CoreServiceStub(create_channel())
@@ -45,10 +47,10 @@ url_9_floor = [
         ]
 
 url_12_floor = [
+    "rtsp://admin:avcit12345678@192.168.19.100/ch45/main/av_stream",
     "rtsp://admin:avcit12345678@192.168.19.100/ch43/main/av_stream",
     "rtsp://admin:avcit12345678@192.168.19.100/ch40/main/av_stream",
     "rtsp://admin:avcit12345678@192.168.19.100/ch46/main/av_stream",
-    "rtsp://admin:avcit12345678@192.168.19.100/ch45/main/av_stream",
     "rtsp://admin:avcit12345678@192.168.19.100/ch44/main/av_stream",
     "rtsp://admin:avcit12345678@192.168.19.100/ch41/main/av_stream",
 ]
@@ -60,24 +62,24 @@ aomen = [
 
 
 # 调用enable接口
-for index, url in enumerate(url_12_floor + url_9_floor):
-    if index > 0:
-        break
-    counter_vehicle_alg = EnableChannelReq(channel_id=index, channel_name="穷哈哈", channel_url=url,)
+# for index, url in enumerate(url_12_floor + url_9_floor):
+#     if index > 1:
+#         break
+#     counter_vehicle_alg = EnableChannelReq(channel_id=index, channel_name="穷哈哈", channel_url=url,)
 
 
-    resp_enable = stub.EnableChannel(counter_vehicle_alg)
-    print(url)
-    # print(resp_enable)
-    # time.sleep(1)
+#     resp_enable = stub.EnableChannel(counter_vehicle_alg)
+#     print(url)
+#     # print(resp_enable)
+#     # time.sleep(1)
 
-print("add task")
-stub.AddTask(AddTaskReq(service_id=0, dev_id=0, root="test"))
+# print("add task")
+# stub.AddTask(AddTaskReq(service_id=0, dev_id=0, root="test"))
 # stub.AddTask(AddTaskReq(service_id=1, dev_id=0, root="test"))
 
 
-print("bind")
-stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=0, channel_name="穷哈哈", config="test"))
+# print("bind")
+# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=0, channel_name="穷哈哈", config="test"))
 # stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=1, channel_name="穷哈哈", config="test"))
 # stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=2, channel_name="穷哈哈", config="test"))
 # stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=3, channel_name="穷哈哈", config="test"))
@@ -90,6 +92,8 @@ stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=0, channel_name="穷�
 # stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=1, channel_name="穷哈哈", config="test"))
 # stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=2, channel_name="穷哈哈", config="test"))
 # stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=3, channel_name="穷哈哈", config="test"))
+
+# time.sleep(1)
 
 # print("unbind")
 # stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=0))
@@ -114,67 +118,72 @@ stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=0, channel_name="穷�
 # stub.DisableChannel(DisableChannelReq(channel_id=3))
 
 
-# t = 30
+t = 10
+# num = 10
+while 1:
+    # 调用enable接口
+    for index, url in enumerate(url_12_floor + url_9_floor):
+    # for index in range(num):
+        # url = "rtsp://192.168.31.188:551/2160"
+        if index > 3:
+            break
+        counter_vehicle_alg = EnableChannelReq(channel_id=index, channel_name="穷哈哈", channel_url=url)
 
-# while 1:
-#     # 调用enable接口
-#     for index, url in enumerate(url_12_floor + url_9_floor):
-#         if index > 3:
-#             break
-#         counter_vehicle_alg = EnableChannelReq(channel_id=index, channel_name="穷哈哈", channel_url=url,)
+
+        resp_enable = stub.EnableChannel(counter_vehicle_alg)
+        print(url)
+
+    # print(f"休息{t}s\n\n")
+    # time.sleep(t)
+
+    print("add task")
+    stub.AddTask(AddTaskReq(service_id=0, dev_id=0, root="test"))
+    # stub.AddTask(AddTaskReq(service_id=1, dev_id=0, root="test"))
+    # print(f"休息{t}s\n\n")
+    # time.sleep(t)
+
+    print("bind")
+    # for index in range(num):
+    #     stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=index, channel_name="穷哈哈", config="test"))
 
 
-#         resp_enable = stub.EnableChannel(counter_vehicle_alg)
-#         print(url)
-#         # print(resp_enable)
-#         # time.sleep(1)
-#     # print(f"休息{t}s\n\n")
-#     # time.sleep(t)
+    stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=0, channel_name="穷哈哈", config="test"))
+    stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=1, channel_name="穷哈哈", config="test"))
+    stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=2, channel_name="穷哈哈", config="test"))
+    stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=3, channel_name="穷哈哈", config="test"))
 
-#     print("add task")
-#     stub.AddTask(AddTaskReq(service_id=0, dev_id=0, root="test"))
-#     stub.AddTask(AddTaskReq(service_id=1, dev_id=0, root="test"))
-#     # print(f"休息{t}s\n\n")
-#     # time.sleep(t)
+    # stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=0, channel_name="穷哈哈", config="test"))
+    # stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=1, channel_name="穷哈哈", config="test"))
+    # stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=2, channel_name="穷哈哈", config="test"))
+    # stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=3, channel_name="穷哈哈", config="test"))
 
-#     print("bind")
-#     stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=0, channel_name="穷哈哈", config="test"))
-#     stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=1, channel_name="穷哈哈", config="test"))
-#     stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=2, channel_name="穷哈哈", config="test"))
-#     stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=3, channel_name="穷哈哈", config="test"))
+    print(f"休息{t}s\n\n")
+    time.sleep(t)
 
-#     stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=0, channel_name="穷哈哈", config="test"))
-#     stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=1, channel_name="穷哈哈", config="test"))
-#     stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=2, channel_name="穷哈哈", config="test"))
-#     stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=3, channel_name="穷哈哈", config="test"))
+    print("unbind")
+    stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=0))
+    stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=1))
+    stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=2))
+    stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=3))
 
-#     print(f"休息{t}s\n\n")
-#     time.sleep(t)
+    # stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=0))
+    # stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=1))
+    # stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=2))
+    # stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=3))
+    # print(f"休息{t}s\n\n")
+    # time.sleep(t)
 
-#     print("unbind")
-#     # stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=0))
-#     stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=1))
-#     stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=2))
-#     stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=3))
+    # print("remove task")
+    # stub.RemoveTask(RemoveTaskReq(service_id=0))
+    # stub.RemoveTask(RemoveTaskReq(service_id=1))
+    # print(f"休息{t}s\n\n")
+    # time.sleep(t)
 
-#     stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=0))
-#     stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=1))
-#     stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=2))
-#     # stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=3))
-#     # print(f"休息{t}s\n\n")
-#     # time.sleep(t)
-
-#     # print("remove task")
-#     # stub.RemoveTask(RemoveTaskReq(service_id=0))
-#     # stub.RemoveTask(RemoveTaskReq(service_id=1))
-#     # print(f"休息{t}s\n\n")
-#     # time.sleep(t)
-
-#     # print("disable channel")
-#     # stub.DisableChannel(DisableChannelReq(channel_id=0))
-#     # stub.DisableChannel(DisableChannelReq(channel_id=1))
-#     # stub.DisableChannel(DisableChannelReq(channel_id=2))
-#     # stub.DisableChannel(DisableChannelReq(channel_id=3))
+    # print("disable channel")
+    # stub.DisableChannel(DisableChannelReq(channel_id=0))
+    # stub.DisableChannel(DisableChannelReq(channel_id=1))
+    # stub.DisableChannel(DisableChannelReq(channel_id=2))
+    # stub.DisableChannel(DisableChannelReq(channel_id=3))
     
-#     print(f"休息{t}s\n\n")
-#     time.sleep(t)
+    print(f"休息{t}s\n\n")
+    time.sleep(t)

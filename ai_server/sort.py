@@ -39,6 +39,7 @@ class BoxTracker():
 
 
     def update(self, img_arr, u_id, conf, top, left, width, height, center_x, center_y, class_id, src_id, frame_number):
+        # print(f"======================{class_id}===========================")
         self.frame_number = frame_number
         self.trace.append([center_x, center_y])
 
@@ -67,7 +68,7 @@ class BoxTracker():
                 self.area[index] = area
 
     def send(self,save=False):
-        if len(self.trace) < 4:
+        if len(self.trace) < 12:
             return 0, "暂不发送，轨迹小于3"
         
         min_x = 1920
@@ -118,7 +119,8 @@ class BoxTracker():
         if save:
             # 保存图片
             # cv2.imwrite(f"/root/apps/ai_server/output/stream{self.src_id}_frame{self.frame_number}_task{self.u_id}_roi.jpg", roi_data)
-            cv2.imwrite(f"/root/apps/ai_server/output2/stream{self.src_id}_frame{self.frame_number}_task{self.u_id}_src.jpg", img_arr)
+            cv2.imwrite(f"/root/apps/ai_server/output/stream{self.src_id}_frame{self.frame_number}_task{self.u_id}_src.jpg", img_arr)
+            # cv2.imwrite(f"/root/apps/ai_server/output2/stream{self.src_id}_frame{self.frame_number}_task{self.u_id}_src.jpg", img_arr)
 
         
         try:

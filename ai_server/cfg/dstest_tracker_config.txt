@@ -30,6 +30,10 @@ ll-lib-file=/opt/nvidia/deepstream/deepstream/lib/libnvds_nvmultiobjecttracker.s
 # ll-config-file=config_tracker_NvDCF_perf.yml
 # ll-config-file=/opt/nvidia/deepstream/deepstream/sources/deepstream_python_apps/apps/runtime_source_add_delete/config_tracker_NvDCF_max_perf.yml
 ll-config-file=/root/apps/ai_server/cfg/config_tracker_NvDCF_max_perf.yml
+enable-batch-process=1
+
+
+
 #[tracker]
 #enable=1
 #tracker-width=640

@@ -40,6 +40,7 @@ from proto.alg_core.core_pb2_grpc import (
 )
 from google.protobuf import empty_pb2
 
+PORT = 50051
 
 LOCK = Plumber.service_lock
 
@@ -242,10 +243,10 @@ while True:
         )  # 将服务实现添加到服务器上
 
         # 指定监听地址和服务端口
-        server.add_insecure_port("[::]:5005")
+        server.add_insecure_port(f"[::]:{PORT}")
 
         server.start()  # 启动服务器
-        logging.info("Server started on port 50051...")
+        logging.info(f"Server started on port {PORT}...")
         server.wait_for_termination()  # 阻塞等待，直到服务器关闭
     except Exception as e:
         logging.info(f"服务异常关闭，重启服务，请重新配置。。。")

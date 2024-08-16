@@ -33,7 +33,7 @@ TargetManagement:
   minIouDiff4NewTarget: 0.5   # If the IOU between the newly detected object and any of the existing targets is higher than this threshold, this newly detected object will be discarded.
   minTrackerConfidence: 0.2   # If the confidence of an object tracker is lower than this on the fly, then it will be tracked in shadow mode. Valid Range: [0.0, 1.0]
   probationAge: 2             # If the target's age exceeds this, the target will be considered to be valid.
-  maxShadowTrackingAge: 18    # Max length of shadow tracking. If the shadowTrackingAge exceeds this limit, the tracker will be terminated.
+  maxShadowTrackingAge: 20    # Max length of shadow tracking. If the shadowTrackingAge exceeds this limit, the tracker will be terminated.
   earlyTerminationAge: 1   # If the shadowTrackingAge reaches this threshold while in TENTATIVE period, the target will be terminated prematurely.
 
 TrajectoryManagement:
