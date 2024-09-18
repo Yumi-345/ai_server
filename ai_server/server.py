@@ -22,8 +22,6 @@ from proto.alg_core.core_pb2_grpc import (
     add_CoreServiceServicer_to_server,
 )
 from google.protobuf import empty_pb2
-import time
-import proto.alg_core.common_pb2 as common_pb2
 
 
 class CoreServiceImpl(CoreServiceServicer):
@@ -32,15 +30,12 @@ class CoreServiceImpl(CoreServiceServicer):
         return
 
     def RemoveTask(self, request: RemoveTaskReq, context):
-        try:
-            print(
-                f"Received EnableChannel request with channel_id: {request.service_id}"
-            )
-            return empty_pb2.Empty()
-        except Exception as e:
-            print(f"Error processing EnableChannel: {e}")
+        return
 
     def EnableChannel(self, request: EnableChannelReq, context):
+        context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+        context.set_details("Invalid argument received.")
+        raise grpc.RpcError()
         try:
             print(
                 f"Received EnableChannel request with channel_id: {request.channel_id}"
@@ -62,27 +57,14 @@ class CoreServiceImpl(CoreServiceServicer):
         return
 
     def UnbindChanTask(self, request: UnbindChanTaskReq, context):
-        try:
-            print(
-                f"Received unbind request with service_id: {request.service_id}"
-            )
-            print(
-                f"Received unbind request with channel_id: {request.channel_id}"
-            )
-            return empty_pb2.Empty()
-        except Exception as e:
-            print(f"Error processing unbind: {e}")
-            
+        print("unbind")
+        print(request.channel_id,request.service_id)
+        print("unbind222")
+        return
+
     def GetMediaInfo(self, request: MediaInfo, context):
         return
 
-    def PublishEvent(self, request, context):
-
-        print(request)
-        return empty_pb2.Empty()
-    
-    def PublishMediaInfo(self, request, context):
-        return super().PublishMediaInfo(request, context)
 
 def serve():
     server = grpc.server(
@@ -93,10 +75,10 @@ def serve():
     )  # 将服务实现添加到服务器上
 
     # 指定监听地址和服务端口
-    server.add_insecure_port("[::]:50053")
+    server.add_insecure_port("[::]:50051")
 
     server.start()  # 启动服务器
-    print("Server started on port 50053...")
+    print("Server started on port 50051...")
     server.wait_for_termination()  # 阻塞等待，直到服务器关闭
 
 

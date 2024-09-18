@@ -198,6 +198,18 @@ class TaskServiceImpl(CoreServiceServicer):
         finally:
             LOCK.release()
         return empty_pb2.Empty()
+    
+    def GetMediaInfo(self, request, context):
+        try:
+            LOCK.acquire()
+            service_id = request.service_id
+            channel_id = request.channel_id
+        except Exception as e:
+            logging.info(f"Error processing GetMediaInfo{service_id} and channel{channel_id}: {e}")
+        finally:
+            LOCK.release()
+        # return empty_pb2.Empty()
+        return super().GetMediaInfo(request, context)
 
 
 plumber = Plumber(logging)
@@ -228,9 +240,9 @@ def bind_chan_task():
 def unbind_chan_task():
     pass
 
-# @plumber.get_media_info
-# def get_media_info():
-#     pass
+@plumber.get_media_info
+def get_media_info():
+    pass
 
 
 while True:

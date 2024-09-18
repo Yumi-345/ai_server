@@ -87,7 +87,6 @@ class Rectangle(google.protobuf.message.Message):
     WIDTH_FIELD_NUMBER: builtins.int
     HEIGHT_FIELD_NUMBER: builtins.int
     left: builtins.int
-    """百分比"""
     top: builtins.int
     width: builtins.int
     height: builtins.int
@@ -102,6 +101,30 @@ class Rectangle(google.protobuf.message.Message):
     def ClearField(self, field_name: typing_extensions.Literal["height", b"height", "left", b"left", "top", b"top", "width", b"width"]) -> None: ...
 
 global___Rectangle = Rectangle
+
+@typing_extensions.final
+class Box(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    X1_FIELD_NUMBER: builtins.int
+    Y1_FIELD_NUMBER: builtins.int
+    X2_FIELD_NUMBER: builtins.int
+    Y2_FIELD_NUMBER: builtins.int
+    x1: builtins.int
+    y1: builtins.int
+    x2: builtins.int
+    y2: builtins.int
+    def __init__(
+        self,
+        *,
+        x1: builtins.int = ...,
+        y1: builtins.int = ...,
+        x2: builtins.int = ...,
+        y2: builtins.int = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["x1", b"x1", "x2", b"x2", "y1", b"y1", "y2", b"y2"]) -> None: ...
+
+global___Box = Box
 
 @typing_extensions.final
 class MediaInfo(google.protobuf.message.Message):

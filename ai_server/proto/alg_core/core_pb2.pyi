@@ -14,6 +14,7 @@ import google.protobuf.internal.containers
 import google.protobuf.internal.enum_type_wrapper
 import google.protobuf.message
 import proto.alg_core.common_pb2
+import proto.alg_core.picture_pb2
 import sys
 import typing
 
@@ -24,108 +25,114 @@ else:
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
-class _ServiceType:
+class _TaskTypeEnum:
     ValueType = typing.NewType("ValueType", builtins.int)
     V: typing_extensions.TypeAlias = ValueType
 
-class _ServiceTypeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_ServiceType.ValueType], builtins.type):
+class _TaskTypeEnumEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_TaskTypeEnum.ValueType], builtins.type):
     DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
-    SERVICE_TYPE_NONE: _ServiceType.ValueType  # 0
-    SERVICE_TYPE_SMART_SITE_CAR_COVER: _ServiceType.ValueType  # 1
-    SERVICE_TYPE_SMART_SITE_CAR_WHEEL: _ServiceType.ValueType  # 2
-    SERVICE_TYPE_SMART_SITE_CAR_LINCESE_PLATE: _ServiceType.ValueType  # 3
-    SERVICE_TYPE_SMART_SITE_PERSON_HELMET: _ServiceType.ValueType  # 4
-    """! safety helmet"""
-    SERVICE_TYPE_SMART_SITE_PERSON_REFLECTIVE: _ServiceType.ValueType  # 5
-    """! reflective vest"""
-    SERVICE_TYPE_SAMRT_SITE_PERSON_SMOKING: _ServiceType.ValueType  # 6
-    SERVICE_TYPE_SMART_SITE_ENV_BARE_SOIL: _ServiceType.ValueType  # 7
-    SERVICE_TYPE_SMART_SITE_ENV_SMOKE: _ServiceType.ValueType  # 8
-    SERVICE_TYPE_SMART_SITE_ENV_FLAME: _ServiceType.ValueType  # 9
-    SERVICE_TYPE_SMART_SITE_PERSON_NIGHT: _ServiceType.ValueType  # 10
-    SERVICE_TYPE_OBJCNT: _ServiceType.ValueType  # 11
-    """object count"""
-    SERVICE_TYPE_OBJCAP: _ServiceType.ValueType  # 12
-    """object capture"""
-    SERVICE_TYPE_PERSON_OBJCAP: _ServiceType.ValueType  # 13
-    SERVICE_TYPE_CAR_OBJCAP: _ServiceType.ValueType  # 14
-    SERVICE_TYPE_NONCAR_OBJCAP: _ServiceType.ValueType  # 15
-    SERVICE_TYPE_FACERECOGNITION: _ServiceType.ValueType  # 16
-    """face recognition"""
-    SERVICE_TYPE_ELECINTRU: _ServiceType.ValueType  # 17
-    """electric bike intrusion"""
-    SERVICE_TYPE_WALKDOGDET: _ServiceType.ValueType  # 18
-    """walk dog without people"""
-    SERVICE_TYPE_PERSON_WANDER: _ServiceType.ValueType  # 19
-    """person wander"""
-    SERVICE_TYPE_PARK_RIDE_DET: _ServiceType.ValueType  # 20
-    """park ride detection"""
-    SERVICE_TYPE_NONCAR_OCCUPY: _ServiceType.ValueType  # 21
-    """non-car occupancy"""
-    SERVICE_TYPE_SHIP_OBJCAP: _ServiceType.ValueType  # 22
-    """ship object capture"""
-    SERVICE_TYPE_CROWD_DET: _ServiceType.ValueType  # 23
-    """crown detection"""
-    SERVICE_TYPE_FALLDOWN_DET: _ServiceType.ValueType  # 24
-    """fall down detection"""
-    SERVICE_TYPE_RUBBISH_HEAP_DET: _ServiceType.ValueType  # 25
-    """rubbish heap detection"""
-    SERVICE_TYPE_RUBBISH_OVERFLOW_DET: _ServiceType.ValueType  # 26
-    """rubbish overflow detection"""
-    SERVICE_TYPE_SMOKE_DET: _ServiceType.ValueType  # 27
-    """smoke detection"""
-    SERVICE_TYPE_FIRE_DET: _ServiceType.ValueType  # 28
-    """fire detection"""
+    TASK_TYPE_UNKNOW: _TaskTypeEnum.ValueType  # 0
+    TASK_TYPE_CAR: _TaskTypeEnum.ValueType  # 1
+    TASK_TYPE_PERSON: _TaskTypeEnum.ValueType  # 2
+    TASK_TYPE_ENVIRONMENT: _TaskTypeEnum.ValueType  # 3
+    TASK_TYPE_VEHICLE: _TaskTypeEnum.ValueType  # 4
+    TASK_TYPE_COLLECT: _TaskTypeEnum.ValueType  # 5
+    """人车非检测抓拍"""
+    TASK_TYPE_PASSENGER_COUNT: _TaskTypeEnum.ValueType  # 6
+    """旅客计算"""
+    TASK_TYPE_EBIKE_LADDER: _TaskTypeEnum.ValueType  # 7
+    """电动车入楼梯"""
+    TASK_TYPE_DOG_WALK: _TaskTypeEnum.ValueType  # 8
+    """遛狗不牵绳"""
+    TASK_TYPE_NONCAR_OCCUPY: _TaskTypeEnum.ValueType  # 9
+    """非机动车占道检测"""
+    TASK_TYPE_SHIP_OBJCAP: _TaskTypeEnum.ValueType  # 10
+    """船只检测"""
+    TASK_TYPE_PERSON_OBJCAP: _TaskTypeEnum.ValueType  # 11
+    """行人检测"""
+    TASK_TYPE_CAR_OBJCAP: _TaskTypeEnum.ValueType  # 12
+    """机动车检测"""
+    TASK_TYPE_NONCAR_OBJCAP: _TaskTypeEnum.ValueType  # 13
+    """驾驶非机动车检测"""
+    TASK_TYPE_RUBBISH_HEAP_DET: _TaskTypeEnum.ValueType  # 14
+    """垃圾堆放检测"""
+    TASK_TYPE_RUBBISH_OVERFLOW_DET: _TaskTypeEnum.ValueType  # 15
+    """垃圾通溢满检测"""
+    TASK_TYPE_PERSON_WANDER: _TaskTypeEnum.ValueType  # 16
+    """徘徊检测"""
+    TASK_TYPE_RIDE: _TaskTypeEnum.ValueType  # 17
+    """骑行检测"""
+    TASK_TYPE_CROWD_DET: _TaskTypeEnum.ValueType  # 18
+    """人群聚集检测"""
+    TASK_TYPE_FALLDOWN_DET: _TaskTypeEnum.ValueType  # 19
+    """跌倒检测"""
+    TASK_TYPE_SMOKE_DET: _TaskTypeEnum.ValueType  # 20
+    """浓烟检测"""
+    TASK_TYPE_FIRE_DET: _TaskTypeEnum.ValueType  # 21
+    """明火检测"""
+    TASK_TYPE_HELMET_DET_NOTRACK: _TaskTypeEnum.ValueType  # 22
+    """未佩戴安全帽检测"""
+    TASK_TYPE_VEST_DET_NOTRACK: _TaskTypeEnum.ValueType  # 23
+    """未穿工衣检测"""
+    TASK_TYPE_PERSON_BREAKIN_NOTRACK: _TaskTypeEnum.ValueType  # 24
+    """区域入侵检测"""
+    TASK_TYPE_FACEMASK_DET_NOTRACK: _TaskTypeEnum.ValueType  # 25
+    """未佩戴戴口罩检测"""
+    TASK_TYPE_REFLECT_DET_NOTRACK: _TaskTypeEnum.ValueType  # 26
+    """未穿戴反光衣检测"""
 
-class ServiceType(_ServiceType, metaclass=_ServiceTypeEnumTypeWrapper): ...
+class TaskTypeEnum(_TaskTypeEnum, metaclass=_TaskTypeEnumEnumTypeWrapper): ...
 
-SERVICE_TYPE_NONE: ServiceType.ValueType  # 0
-SERVICE_TYPE_SMART_SITE_CAR_COVER: ServiceType.ValueType  # 1
-SERVICE_TYPE_SMART_SITE_CAR_WHEEL: ServiceType.ValueType  # 2
-SERVICE_TYPE_SMART_SITE_CAR_LINCESE_PLATE: ServiceType.ValueType  # 3
-SERVICE_TYPE_SMART_SITE_PERSON_HELMET: ServiceType.ValueType  # 4
-"""! safety helmet"""
-SERVICE_TYPE_SMART_SITE_PERSON_REFLECTIVE: ServiceType.ValueType  # 5
-"""! reflective vest"""
-SERVICE_TYPE_SAMRT_SITE_PERSON_SMOKING: ServiceType.ValueType  # 6
-SERVICE_TYPE_SMART_SITE_ENV_BARE_SOIL: ServiceType.ValueType  # 7
-SERVICE_TYPE_SMART_SITE_ENV_SMOKE: ServiceType.ValueType  # 8
-SERVICE_TYPE_SMART_SITE_ENV_FLAME: ServiceType.ValueType  # 9
-SERVICE_TYPE_SMART_SITE_PERSON_NIGHT: ServiceType.ValueType  # 10
-SERVICE_TYPE_OBJCNT: ServiceType.ValueType  # 11
-"""object count"""
-SERVICE_TYPE_OBJCAP: ServiceType.ValueType  # 12
-"""object capture"""
-SERVICE_TYPE_PERSON_OBJCAP: ServiceType.ValueType  # 13
-SERVICE_TYPE_CAR_OBJCAP: ServiceType.ValueType  # 14
-SERVICE_TYPE_NONCAR_OBJCAP: ServiceType.ValueType  # 15
-SERVICE_TYPE_FACERECOGNITION: ServiceType.ValueType  # 16
-"""face recognition"""
-SERVICE_TYPE_ELECINTRU: ServiceType.ValueType  # 17
-"""electric bike intrusion"""
-SERVICE_TYPE_WALKDOGDET: ServiceType.ValueType  # 18
-"""walk dog without people"""
-SERVICE_TYPE_PERSON_WANDER: ServiceType.ValueType  # 19
-"""person wander"""
-SERVICE_TYPE_PARK_RIDE_DET: ServiceType.ValueType  # 20
-"""park ride detection"""
-SERVICE_TYPE_NONCAR_OCCUPY: ServiceType.ValueType  # 21
-"""non-car occupancy"""
-SERVICE_TYPE_SHIP_OBJCAP: ServiceType.ValueType  # 22
-"""ship object capture"""
-SERVICE_TYPE_CROWD_DET: ServiceType.ValueType  # 23
-"""crown detection"""
-SERVICE_TYPE_FALLDOWN_DET: ServiceType.ValueType  # 24
-"""fall down detection"""
-SERVICE_TYPE_RUBBISH_HEAP_DET: ServiceType.ValueType  # 25
-"""rubbish heap detection"""
-SERVICE_TYPE_RUBBISH_OVERFLOW_DET: ServiceType.ValueType  # 26
-"""rubbish overflow detection"""
-SERVICE_TYPE_SMOKE_DET: ServiceType.ValueType  # 27
-"""smoke detection"""
-SERVICE_TYPE_FIRE_DET: ServiceType.ValueType  # 28
-"""fire detection"""
-global___ServiceType = ServiceType
+TASK_TYPE_UNKNOW: TaskTypeEnum.ValueType  # 0
+TASK_TYPE_CAR: TaskTypeEnum.ValueType  # 1
+TASK_TYPE_PERSON: TaskTypeEnum.ValueType  # 2
+TASK_TYPE_ENVIRONMENT: TaskTypeEnum.ValueType  # 3
+TASK_TYPE_VEHICLE: TaskTypeEnum.ValueType  # 4
+TASK_TYPE_COLLECT: TaskTypeEnum.ValueType  # 5
+"""人车非检测抓拍"""
+TASK_TYPE_PASSENGER_COUNT: TaskTypeEnum.ValueType  # 6
+"""旅客计算"""
+TASK_TYPE_EBIKE_LADDER: TaskTypeEnum.ValueType  # 7
+"""电动车入楼梯"""
+TASK_TYPE_DOG_WALK: TaskTypeEnum.ValueType  # 8
+"""遛狗不牵绳"""
+TASK_TYPE_NONCAR_OCCUPY: TaskTypeEnum.ValueType  # 9
+"""非机动车占道检测"""
+TASK_TYPE_SHIP_OBJCAP: TaskTypeEnum.ValueType  # 10
+"""船只检测"""
+TASK_TYPE_PERSON_OBJCAP: TaskTypeEnum.ValueType  # 11
+"""行人检测"""
+TASK_TYPE_CAR_OBJCAP: TaskTypeEnum.ValueType  # 12
+"""机动车检测"""
+TASK_TYPE_NONCAR_OBJCAP: TaskTypeEnum.ValueType  # 13
+"""驾驶非机动车检测"""
+TASK_TYPE_RUBBISH_HEAP_DET: TaskTypeEnum.ValueType  # 14
+"""垃圾堆放检测"""
+TASK_TYPE_RUBBISH_OVERFLOW_DET: TaskTypeEnum.ValueType  # 15
+"""垃圾通溢满检测"""
+TASK_TYPE_PERSON_WANDER: TaskTypeEnum.ValueType  # 16
+"""徘徊检测"""
+TASK_TYPE_RIDE: TaskTypeEnum.ValueType  # 17
+"""骑行检测"""
+TASK_TYPE_CROWD_DET: TaskTypeEnum.ValueType  # 18
+"""人群聚集检测"""
+TASK_TYPE_FALLDOWN_DET: TaskTypeEnum.ValueType  # 19
+"""跌倒检测"""
+TASK_TYPE_SMOKE_DET: TaskTypeEnum.ValueType  # 20
+"""浓烟检测"""
+TASK_TYPE_FIRE_DET: TaskTypeEnum.ValueType  # 21
+"""明火检测"""
+TASK_TYPE_HELMET_DET_NOTRACK: TaskTypeEnum.ValueType  # 22
+"""未佩戴安全帽检测"""
+TASK_TYPE_VEST_DET_NOTRACK: TaskTypeEnum.ValueType  # 23
+"""未穿工衣检测"""
+TASK_TYPE_PERSON_BREAKIN_NOTRACK: TaskTypeEnum.ValueType  # 24
+"""区域入侵检测"""
+TASK_TYPE_FACEMASK_DET_NOTRACK: TaskTypeEnum.ValueType  # 25
+"""未佩戴戴口罩检测"""
+TASK_TYPE_REFLECT_DET_NOTRACK: TaskTypeEnum.ValueType  # 26
+"""未穿戴反光衣检测"""
+global___TaskTypeEnum = TaskTypeEnum
 
 class _EventType:
     ValueType = typing.NewType("ValueType", builtins.int)
@@ -133,77 +140,15 @@ class _EventType:
 
 class _EventTypeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_EventType.ValueType], builtins.type):
     DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
-    EVENT_TYPE_ALARM: _EventType.ValueType  # 0
-    """! smart site"""
-    EVENT_TYPE_OBJECT_COUNT: _EventType.ValueType  # 1
-    """! object flow statistics"""
-    EVENT_TYPE_OBJECT_CAPTURE: _EventType.ValueType  # 2
-    """! object capture"""
-    EVENT_TYPE_OBJECT_DETECT: _EventType.ValueType  # 3
-    """! object count"""
-    EVENT_TYPE_ELEC_INTR_LAD: _EventType.ValueType  # 4
-    """! electric-bike intrude elevator"""
-    EVENT_TYPE_WALK_DOG_DET: _EventType.ValueType  # 5
-    """! walk dog without owner near by"""
-    EVENT_TYPE_FACE_RECOGNITION: _EventType.ValueType  # 6
-    """! face recognition service"""
-    EVENT_TYPE_SHIP_CAPTURE: _EventType.ValueType  # 7
-    """! ship capture"""
-    EVENT_TYPE_NONCAR_OCCUPY_CAP: _EventType.ValueType  # 8
-    """! non-car occupy capture"""
-    EVENT_TYPE_RUBISH_HEAP_DET_CAP: _EventType.ValueType  # 9
-    """! rubbish heap detection capture"""
-    EVENT_TYPE_RUBISH_OVER_FLOW_DET_CAP: _EventType.ValueType  # 10
-    """! rubbish overflow detection capture"""
-    EVENT_TYPE_FALL_DOWN_DET_CAP: _EventType.ValueType  # 11
-    """! fall down detection capture"""
-    EVENT_TYPE_SMOKE_FIRE_DET_CAP: _EventType.ValueType  # 12
-    """! smoke fire detection capture"""
-    EVENT_TYPE_CROWN_DET_CAP: _EventType.ValueType  # 13
-    """! crown detection capture"""
-    EVENT_TYPE_SIT_PERSON_SMOKING_CAP: _EventType.ValueType  # 14
-    """! site person smoking capture"""
-    EVENT_TYPE_PERSON_WANDER: _EventType.ValueType  # 15
-    """! person wander"""
-    EVENT_TYPE_PARK_RIDE: _EventType.ValueType  # 16
-    """! park ride"""
+    EVENT_TYPE_UNKNOW: _EventType.ValueType  # 0
+    EVENT_TYPE_PIC: _EventType.ValueType  # 1
+    """图片事件"""
 
 class EventType(_EventType, metaclass=_EventTypeEnumTypeWrapper): ...
 
-EVENT_TYPE_ALARM: EventType.ValueType  # 0
-"""! smart site"""
-EVENT_TYPE_OBJECT_COUNT: EventType.ValueType  # 1
-"""! object flow statistics"""
-EVENT_TYPE_OBJECT_CAPTURE: EventType.ValueType  # 2
-"""! object capture"""
-EVENT_TYPE_OBJECT_DETECT: EventType.ValueType  # 3
-"""! object count"""
-EVENT_TYPE_ELEC_INTR_LAD: EventType.ValueType  # 4
-"""! electric-bike intrude elevator"""
-EVENT_TYPE_WALK_DOG_DET: EventType.ValueType  # 5
-"""! walk dog without owner near by"""
-EVENT_TYPE_FACE_RECOGNITION: EventType.ValueType  # 6
-"""! face recognition service"""
-EVENT_TYPE_SHIP_CAPTURE: EventType.ValueType  # 7
-"""! ship capture"""
-EVENT_TYPE_NONCAR_OCCUPY_CAP: EventType.ValueType  # 8
-"""! non-car occupy capture"""
-EVENT_TYPE_RUBISH_HEAP_DET_CAP: EventType.ValueType  # 9
-"""! rubbish heap detection capture"""
-EVENT_TYPE_RUBISH_OVER_FLOW_DET_CAP: EventType.ValueType  # 10
-"""! rubbish overflow detection capture"""
-EVENT_TYPE_FALL_DOWN_DET_CAP: EventType.ValueType  # 11
-"""! fall down detection capture"""
-EVENT_TYPE_SMOKE_FIRE_DET_CAP: EventType.ValueType  # 12
-"""! smoke fire detection capture"""
-EVENT_TYPE_CROWN_DET_CAP: EventType.ValueType  # 13
-"""! crown detection capture"""
-EVENT_TYPE_SIT_PERSON_SMOKING_CAP: EventType.ValueType  # 14
-"""! site person smoking capture"""
-EVENT_TYPE_PERSON_WANDER: EventType.ValueType  # 15
-"""! person wander"""
-EVENT_TYPE_PARK_RIDE: EventType.ValueType  # 16
-"""! park ride"""
+EVENT_TYPE_UNKNOW: EventType.ValueType  # 0
+EVENT_TYPE_PIC: EventType.ValueType  # 1
+"""图片事件"""
 global___EventType = EventType
 
 @typing_extensions.final
@@ -301,7 +246,7 @@ class ChanServiceConfig(google.protobuf.message.Message):
     WINDOW_HIT_FIELD_NUMBER: builtins.int
     CROWD_NUM_THRESHOLD_FIELD_NUMBER: builtins.int
     FACEQA_THRESHOLD_FIELD_NUMBER: builtins.int
-    task_type: global___ServiceType.ValueType
+    task_type: global___TaskTypeEnum.ValueType
     """任务类型"""
     @property
     def roi(self) -> proto.alg_core.common_pb2.Area:
@@ -334,7 +279,7 @@ class ChanServiceConfig(google.protobuf.message.Message):
     def __init__(
         self,
         *,
-        task_type: global___ServiceType.ValueType = ...,
+        task_type: global___TaskTypeEnum.ValueType = ...,
         roi: proto.alg_core.common_pb2.Area | None = ...,
         box_min_w: builtins.int = ...,
         box_min_h: builtins.int = ...,
@@ -400,27 +345,42 @@ class Event(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     EVENT_TYPE_FIELD_NUMBER: builtins.int
-    JSON_STR_FIELD_NUMBER: builtins.int
+    CHANNEL_ID_FIELD_NUMBER: builtins.int
     SRCS_FIELD_NUMBER: builtins.int
     TRAINS_FIELD_NUMBER: builtins.int
     ROIS_FIELD_NUMBER: builtins.int
+    BOX_FIELD_NUMBER: builtins.int
+    PROPERTY_FIELD_NUMBER: builtins.int
+    TASK_ID_FIELD_NUMBER: builtins.int
+    PIC_TYPE_FIELD_NUMBER: builtins.int
     event_type: global___EventType.ValueType
-    json_str: builtins.str
+    channel_id: builtins.int
     @property
     def srcs(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.bytes]: ...
     @property
     def trains(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.bytes]: ...
     @property
     def rois(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.bytes]: ...
+    @property
+    def box(self) -> proto.alg_core.common_pb2.Box: ...
+    property: builtins.str
+    """json data to string"""
+    task_id: global___TaskTypeEnum.ValueType
+    pic_type: proto.alg_core.picture_pb2.PictureType.ValueType
     def __init__(
         self,
         *,
         event_type: global___EventType.ValueType = ...,
-        json_str: builtins.str = ...,
+        channel_id: builtins.int = ...,
         srcs: collections.abc.Iterable[builtins.bytes] | None = ...,
         trains: collections.abc.Iterable[builtins.bytes] | None = ...,
         rois: collections.abc.Iterable[builtins.bytes] | None = ...,
+        box: proto.alg_core.common_pb2.Box | None = ...,
+        property: builtins.str = ...,
+        task_id: global___TaskTypeEnum.ValueType = ...,
+        pic_type: proto.alg_core.picture_pb2.PictureType.ValueType = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["event_type", b"event_type", "json_str", b"json_str", "rois", b"rois", "srcs", b"srcs", "trains", b"trains"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["box", b"box"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["box", b"box", "channel_id", b"channel_id", "event_type", b"event_type", "pic_type", b"pic_type", "property", b"property", "rois", b"rois", "srcs", b"srcs", "task_id", b"task_id", "trains", b"trains"]) -> None: ...
 
 global___Event = Event

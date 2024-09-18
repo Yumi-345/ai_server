@@ -31,104 +31,46 @@ MAX_MESSAGE_LENGTH = 256*1024*1024  # 可根据具体需求设置，此处设为
 PORT = 50051
 
 def create_channel():
-    return grpc.insecure_channel(target=f"127.0.0.1:{PORT}")
+    return grpc.insecure_channel(target=f"172.20.38.202:{PORT}")
 
 # 创建客户端
 stub = CoreServiceStub(create_channel())
 
 
 
-url_9_floor = [
-        "rtsp://admin:avcit12345678@192.168.19.100/ch39/main/av_stream",
-        "rtsp://admin:avcit12345678@192.168.19.100/ch33/main/av_stream",
-        # "rtsp://admin:avcit12345678@192.168.19.100/ch34/main/av_stream", 拉流失败
-        # "rtsp://admin:avcit12345678@192.168.19.100/ch35/main/av_stream",
-        # "rtsp://admin:avcit12345678@192.168.19.100/ch36/main/av_stream"
-        ]
-
-url_12_floor = [
-    "rtsp://admin:avcit12345678@192.168.19.100/ch45/main/av_stream",
-    "rtsp://admin:avcit12345678@192.168.19.100/ch43/main/av_stream",
-    "rtsp://admin:avcit12345678@192.168.19.100/ch40/main/av_stream",
-    "rtsp://admin:avcit12345678@192.168.19.100/ch46/main/av_stream",
-    "rtsp://admin:avcit12345678@192.168.19.100/ch44/main/av_stream",
-    "rtsp://admin:avcit12345678@192.168.19.100/ch41/main/av_stream",
+url_17_floor = [
+    "rtsp://admin:avcit12345678@172.20.18.252:554/ch33/main/av_stream", # 17F消防电梯前室
+    "rtsp://admin:avcit12345678@172.20.18.252/ch34/main/av_stream", # 17F南C办公区
+    "rtsp://admin:avcit12345678@172.20.18.252/ch35/main/av_stream", # 17F南A办公区
+    "rtsp://admin:avcit12345678@172.20.18.252/ch36/main/av_stream", # 17F北A办公区
+    "rtsp://admin:avcit12345678@172.20.18.252/ch37/main/av_stream", # 17F北B办公区
+    "rtsp://admin:avcit12345678@172.20.18.252/ch38/main/av_stream", # 17F楼梯口
+    "rtsp://admin:avcit12345678@172.20.18.252/ch39/main/av_stream", # 17F南B办公区
+    "rtsp://admin:avcit12345678@172.20.18.252/ch40/main/av_stream", # 17F南D办公区
+    "rtsp://admin:avcit12345678@172.20.18.252/ch41/main/av_stream", # 17F南C办公区
+    "rtsp://admin:avcit12345678@172.20.18.252/ch42/main/av_stream", # 17F电梯厅
+    "rtsp://admin:avcit12345678@172.20.18.252/ch43/main/av_stream", # 17F西过道
+    "rtsp://admin:avcit12345678@172.20.18.252/ch44/main/av_stream", # 17F东过道
+    "rtsp://admin:avcit12345678@172.20.18.252/ch45/main/av_stream", # Camera 01
 ]
 
-aomen = [
-    "rtsp://192.168.31.121:8554/test",
+other = [
+    "rtsp://admin:avcit12345678@172.20.18.252/ch46/main/av_stream",#1楼消防梯前室
+    "rtsp://admin:avcit12345678@172.20.18.252/ch47/main/av_stream",
+    "rtsp://admin:avcit12345678@172.20.18.252/ch48/main/av_stream",
+    "rtsp://admin:avcit12345678@172.20.18.252/ch49/main/av_stream",
+    "rtsp://admin:avcit12345678@172.20.18.252/ch50/main/av_stream",
 ]
 
 
-
-# 调用enable接口
-# for index, url in enumerate(url_12_floor + url_9_floor):
-#     if index > 1:
-#         break
-#     counter_vehicle_alg = EnableChannelReq(channel_id=index, channel_name="穷哈哈", channel_url=url,)
-
-
-#     resp_enable = stub.EnableChannel(counter_vehicle_alg)
-#     print(url)
-#     # print(resp_enable)
-#     # time.sleep(1)
-
-# print("add task")
-# stub.AddTask(AddTaskReq(service_id=0, dev_id=0, root="test"))
-# stub.AddTask(AddTaskReq(service_id=1, dev_id=0, root="test"))
-
-
-# print("bind")
-# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=0, channel_name="穷哈哈", config="test"))
-# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=1, channel_name="穷哈哈", config="test"))
-# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=2, channel_name="穷哈哈", config="test"))
-# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=3, channel_name="穷哈哈", config="test"))
-# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=4, channel_name="穷哈哈", config="test"))
-# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=5, channel_name="穷哈哈", config="test"))
-# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=6, channel_name="穷哈哈", config="test"))
-# stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=7, channel_name="穷哈哈", config="test"))
-
-# stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=0, channel_name="穷哈哈", config="test"))
-# stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=1, channel_name="穷哈哈", config="test"))
-# stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=2, channel_name="穷哈哈", config="test"))
-# stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=3, channel_name="穷哈哈", config="test"))
-
-# time.sleep(1)
-
-# print("unbind")
-# stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=0))
-# stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=1))
-# stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=2))
-# stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=3))
-
-# stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=0))
-# stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=1))
-# stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=2))
-# stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=3))
-
-
-# print("remove task")
-# stub.RemoveTask(RemoveTaskReq(service_id=0))
-# stub.RemoveTask(RemoveTaskReq(service_id=1))
-
-# print("disable channel")
-# stub.DisableChannel(DisableChannelReq(channel_id=0))
-# stub.DisableChannel(DisableChannelReq(channel_id=1))
-# stub.DisableChannel(DisableChannelReq(channel_id=2))
-# stub.DisableChannel(DisableChannelReq(channel_id=3))
-
-
-t = 10
-# num = 10
+t = 20
+num = 8
 while 1:
     # 调用enable接口
-    for index, url in enumerate(url_12_floor + url_9_floor):
-    # for index in range(num):
-        # url = "rtsp://192.168.31.188:551/2160"
-        if index > 3:
+    for index, url in enumerate(url_17_floor + other):
+        if index > num-1:
             break
         counter_vehicle_alg = EnableChannelReq(channel_id=index, channel_name="穷哈哈", channel_url=url)
-
 
         resp_enable = stub.EnableChannel(counter_vehicle_alg)
         print(url)
@@ -143,14 +85,14 @@ while 1:
     # time.sleep(t)
 
     print("bind")
-    # for index in range(num):
-    #     stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=index, channel_name="穷哈哈", config="test"))
+    for index in range(num):
+        stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=index, channel_name="穷哈哈", config="test"))
 
 
-    stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=0, channel_name="穷哈哈", config="test"))
-    stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=1, channel_name="穷哈哈", config="test"))
-    stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=2, channel_name="穷哈哈", config="test"))
-    stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=3, channel_name="穷哈哈", config="test"))
+    # stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=0, channel_name="穷哈哈", config="test"))
+    # stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=1, channel_name="穷哈哈", config="test"))
+    # stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=2, channel_name="穷哈哈", config="test"))
+    # stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=3, channel_name="穷哈哈", config="test"))
 
     # stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=0, channel_name="穷哈哈", config="test"))
     # stub.BindChanTask(BindChanTaskReq(service_id=1, channel_id=1, channel_name="穷哈哈", config="test"))
@@ -160,11 +102,14 @@ while 1:
     print(f"休息{t}s\n\n")
     time.sleep(t)
 
-    print("unbind")
-    stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=0))
-    stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=1))
-    stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=2))
-    stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=3))
+    # print("unbind")
+    # for index in range(num):
+    #     stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=index))
+
+    # stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=0))
+    # stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=1))
+    # stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=2))
+    # stub.UnbindChanTask(UnbindChanTaskReq(service_id=0, channel_id=3))
 
     # stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=0))
     # stub.UnbindChanTask(UnbindChanTaskReq(service_id=1, channel_id=1))

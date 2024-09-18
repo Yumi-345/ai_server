@@ -43,7 +43,7 @@ class SafeLock:
             try:
                 self.lock.release()
                 self.lock_held.clear()
-                print(">>>锁释放=======")
+                # print(">>>锁释放=======")
             except Exception as e:
                 print(f"******************error in release lock***************:\n{e}")
 
@@ -205,8 +205,11 @@ def get_data_GPU(gst_buffer, frame_meta):
     # Create cupy array to access the image data. This array is in GPU buffer
     n_frame_gpu = cp.ndarray(shape=shape, dtype=data_type, memptr=memptr, strides=strides, order='C')
     # Initialize cuda.stream object for stream synchronization
-    # stream = cp.cuda.stream.Stream(null=True) # Use null stream to prevent other cuda applications from making illegal memory access of buffer
+
+    # 下边为创建cuda流，若使用null，则多线程变为单线程运行，但是提示信息表示不使用null，可能存在非法访问cuda内存问题，目前未遇到，待定
+    stream = cp.cuda.stream.Stream() # Use null stream to prevent other cuda applications from making illegal memory access of buffer
     # Modify the red channel to add blue tint to image
     
-    # with stream:
-    return n_frame_gpu.get()
+    with stream:
+        n_frame_cpu = n_frame_gpu.get()
+    return n_frame_cpu
