@@ -22,8 +22,6 @@ from service.base_server import BaseServer
 from utils.sort import BoxTracker
 
 from utils.utils import SafeLock
-from utils.utils import get_data_GPU
-from concurrent.futures import ThreadPoolExecutor
 
 
 MUXER_OUTPUT_WIDTH=1920
@@ -104,7 +102,6 @@ class MultiBoxTransfer:
                     src_id = msg["src_id"]
                     frame_number = msg["frame_number"]
                     service_id = msg["service_id"]
-                    timestamp = msg["timestamp"]
 
                     best_matches = None
                     if all([key in msg["objs"].keys() for key in self.match_pairs]):
@@ -134,8 +131,7 @@ class MultiBoxTransfer:
                                         key, 
                                         src_id, 
                                         frame_number, 
-                                        child_obj, 
-                                        timestamp
+                                        child_obj
                                         )
                                 else:
                                     self.tracker_dict[u_id] = BoxTracker(
@@ -146,9 +142,7 @@ class MultiBoxTransfer:
                                         src_id, 
                                         frame_number, 
                                         None,  # config预留位置
-                                        child_obj, 
-                                        self.frame_cache, 
-                                        timestamp
+                                        child_obj
                                         )
                                 self.box_lock.release()
                         
@@ -164,8 +158,6 @@ class MultiBoxTransfer:
                                     n2d.append(key)
                     for index in n2d:
                         self.tracker_dict.pop(index)
-                        # del self.tracker_dict[index]
-                        # print(len(self.tracker_dict))
                     self.box_lock.release()
 
             except Exception as e:
@@ -174,9 +166,6 @@ class MultiBoxTransfer:
     def release(self, ):
         self.is_alive = False
         self.tracker_dict.clear()
-
-    def bind(self, frame_cache):
-        self.frame_cache = frame_cache
 
     def unbind(self, channel_id, task_id):
         # self.tracker_dict.clear()
@@ -195,23 +184,16 @@ class MultiBoxTransfer:
     #     print(f"真正的死亡就是：被遗忘，仿佛从来没有来过")
 
 
-class PCNServer(BaseServer):
+class SleepingWorkstation(BaseServer):
     def __init__(self, service_id, dev_id, root, logging, perf_data):
         self.service_id = service_id
-        if service_id == 11: # 人
-            self.track_classes = [0, 2]
-        elif service_id == 12: # 车
-            self.track_classes = [1, 7]
-        elif service_id == 13: # 非
-            self.track_classes = [3, 4, 5]
-
         self.dev_id = dev_id
         self.root = root
         self.logging = logging
         # self.channel_box_dict = {}
         self.tracker_dict = {}
         self.perf_data = perf_data
-        self.tracker_lock = SafeLock(10)
+        # self.tracker_lock = SafeLock(10)
         
         # ==============
         self.config_dict = {}
@@ -225,32 +207,38 @@ class PCNServer(BaseServer):
         frame_number=0
         gst_buffer = info.get_buffer()
         batch_meta = pyds.gst_buffer_get_nvds_batch_meta(hash(gst_buffer))
-        t0 = time.time()
-
 
         l_frame = batch_meta.frame_meta_list
-        t0 = time.time()
-        while l_frame is not None:
 
+        while l_frame is not None:
+            # ==================
+            msg = {}
+            # =====================
             try:
-                # frame_meta = pyds.glist_get_nvds_frame_meta(l_frame.data)
-                frame_meta = pyds.NvDsFrameMeta.cast(l_frame.data)
+                frame_meta = pyds.glist_get_nvds_frame_meta(l_frame.data)
             except StopIteration:
-                return
-            
+                break
             src_id = frame_meta.source_id
             # src_id = frame_meta.pad_index
             self.perf_data.update_fps("stream"+str(src_id))
-            # print(f"****************{src_id}:*******{frame_meta.buf_pts / Gst.SECOND}")
-            timestamp = frame_meta.buf_pts / Gst.SECOND
+
+            frame_number = frame_meta.frame_num
+            t0 = time.time()
+
+            n_frame_cpu = self.get_data_GPU(gst_buffer, frame_meta)
+            img_arr = cv2.cvtColor(n_frame_cpu, cv2.COLOR_RGBA2BGRA)
+            # print(f"=========================={time.time()-t0}================")
 
             l_obj = frame_meta.obj_meta_list
-
-            msg = {}
+            
+            # =============
+            msg["src_id"] = src_id
+            msg["frame_number"] = frame_number
+            msg["img"] = img_arr
             msg["objs"] = {}
-            msg["timestamp"] = timestamp
+            msg["service_id"] = u_data
+            # =====================
 
-            has_obj = False
             while l_obj is not None:
                 try:
                     # Casting l_obj.data to pyds.NvDsObjectMeta
@@ -261,7 +249,7 @@ class PCNServer(BaseServer):
                     break
 
                 object_id = obj_meta.object_id
-                # u_id = f"{u_data}_{src_id}_{object_id}"
+                u_id = f"{u_data}_{src_id}_{object_id}"
 
                 if obj_meta.tracker_confidence > 0.2: # 判断是否目标存在
                     # obj_meta.text_params.text_bg_clr.set(0.5, 0.0, 0.5, 0.6)  # 设置显示背景颜色
@@ -282,42 +270,23 @@ class PCNServer(BaseServer):
                     center_x = left + width / 2
                     center_y = top + height / 2
 
-                    if int(class_id) in self.track_classes:
-                        has_obj = True
-                        if class_id in msg["objs"].keys():
-                            msg["objs"][class_id].append([object_id, confidence, left, top, width, height, center_x, center_y])
-                        else:
-                            msg["objs"][class_id] = [[object_id, confidence, left, top, width, height, center_x, center_y]]
-                        
+                    if class_id in msg["objs"].keys():
+                        msg["objs"][class_id].append([object_id, confidence, left, top, width, height, center_x, center_y])
+                    else:
+                        msg["objs"][class_id] = [[object_id, confidence, left, top, width, height, center_x, center_y]]
+                    # ===================
                 try:
                     l_obj = l_obj.next
                 except StopIteration:
                     break
-            if has_obj:
-                frame_number = frame_meta.frame_num
-                # n_frame_cpu = self.get_data_GPU(gst_buffer, frame_meta)
-                # img_arr = cv2.cvtColor(n_frame_cpu, cv2.COLOR_RGBA2BGRA)
-                # =======================
-                # surface = pyds.get_nvds_buf_surface(hash(gst_buffer), frame_meta.batch_id)
-                # img_rgb = np.array(surface, copy=True, order='C')
-                # print(surface)
-                # img_arr = img_rgb[:, :, [2,1,0]]
-                # =====================
-
-                # img_arr = np.zeros(shape=(1080, 1920, 3), dtype=np.uint8)
-
-                msg["src_id"] = src_id
-                msg["frame_number"] = frame_number
-                msg["img"] = None
-                msg["service_id"] = u_data
-                self.multi_box.put(msg)
+            # ==============
+            self.multi_box.put(msg)
+            # ============
 
             try:
                 l_frame = l_frame.next
             except StopIteration:
                 break
-        # print(f"=========================={time.time()-t0}================\n\n")
-
         return Gst.PadProbeReturn.OK
 
     def bus_call(self, bus, message):
@@ -361,9 +330,9 @@ class PCNServer(BaseServer):
         这里batch大于视频流个数会导致NVstreammux每个流取一帧后开始等待，直至超时；
         一旦超时设置的帧率小于实际拉流帧率，进而导致延时积累
         '''
-        streammux.set_property("batched-push-timeout", 40000) # 这里的处理速度如果小于发送的速度，会导致延迟
+        streammux.set_property("batched-push-timeout", 30000) # 这里的处理速度如果小于发送的速度，会导致延迟
         # streammux.set_property("frame-duration", 0)
-        streammux.set_property("batch-size", 16) # 重要点，此处的batch-size,将会影响探针处的l_frame个数，也就是说探针如果不设置为多线程，将会影响并发性能
+        streammux.set_property("batch-size", 8) # 重要点，此处的batch-size,将会影响探针处的l_frame个数，也就是说探针如果不设置为多线程，将会影响并发性能
 
         streammux.set_property("gpu_id", self.dev_id)
         streammux.set_property("live-source", 1)
@@ -442,9 +411,8 @@ class PCNServer(BaseServer):
         pipeline.set_state(Gst.State.PLAYING)
         return pipeline
 
-    def bind(self, task_id, channel_id, channel_name, config, frame_cache):
+    def bind(self, task_id, channel_id, channel_name, config):
         self.config_dict[channel_id] = config
-        self.multi_box.bind(frame_cache)
 
     def release(self):
         # if self.probe_id is not None:

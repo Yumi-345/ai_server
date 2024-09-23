@@ -19,7 +19,7 @@ def create_channel():
     return grpc.insecure_channel("172.20.253.34:50053")
 
 
-class BoxTracker():
+class BoxJudger():
     def __init__(self, img_arr, u_id, conf, left, top, width, height, center_x, center_y, class_id, src_id, frame_number, config, child_obj):
         self.n2d = False
         self.img_arr = [img_arr]

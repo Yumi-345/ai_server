@@ -64,7 +64,7 @@ other = [
 
 
 t = 20
-num = 8
+num = 16
 while 1:
     # 调用enable接口
     for index, url in enumerate(url_17_floor + other):
@@ -79,14 +79,15 @@ while 1:
     # time.sleep(t)
 
     print("add task")
-    stub.AddTask(AddTaskReq(service_id=0, dev_id=0, root="test"))
-    # stub.AddTask(AddTaskReq(service_id=1, dev_id=0, root="test"))
+    stub.AddTask(AddTaskReq(service_id=11, dev_id=0, root="test"))
+    stub.AddTask(AddTaskReq(service_id=12, dev_id=0, root="test"))
     # print(f"休息{t}s\n\n")
     # time.sleep(t)
 
     print("bind")
     for index in range(num):
-        stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=index, channel_name="穷哈哈", config="test"))
+        stub.BindChanTask(BindChanTaskReq(service_id=11, channel_id=index, channel_name="穷哈哈", config="test"))
+        stub.BindChanTask(BindChanTaskReq(service_id=12, channel_id=index, channel_name="穷哈哈", config="test"))
 
 
     # stub.BindChanTask(BindChanTaskReq(service_id=0, channel_id=0, channel_name="穷哈哈", config="test"))

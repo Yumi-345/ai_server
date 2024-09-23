@@ -14,12 +14,18 @@ import time
 import threading
 import sys
 import pyds
+import numpy as np
 
-from sort import BoxTracker
+import ctypes
+import cupy as cp
 
-from utils import start_pipeline, stop_pipeline, get_data_GPU, check_pipeline_elements, SafeLock
+from utils.sort import BoxTracker
+
+from utils.utils import start_pipeline, stop_pipeline, get_data_GPU, check_pipeline_elements, SafeLock
 
 from service.PCN import PCNServer
+
+from collections import defaultdict, deque
 
 
 MUXER_OUTPUT_WIDTH=1920
@@ -29,6 +35,7 @@ PGIE_CONFIG_FILE = '/root/apps/ai_server/cfg/test.txt'
 TRACKER_CONFIG_FILE = "/root/apps/ai_server/cfg/dstest_tracker_config.txt"
 
 # MAX_TIMES_FOR_ENABLE = 3
+frame_cache = defaultdict(lambda:deque(maxlen=50))
 
 SERVICE_DICT = {
     0:"PCNDetect",
@@ -47,7 +54,8 @@ def decodebin_child_added(child_proxy,Object,name,user_data):
         Object.connect("child-added",decodebin_child_added,user_data)   
     if(name.find("nvv4l2decoder") != -1):
         Object.set_property("gpu_id", 0)
-        Object.set_property("drop-frame-interval", 3) # 帧率的设置在这里，通过设置每几帧丢弃（or取?）一帧来达到改变帧率的目的。
+        Object.set_property("drop-frame-interval", 5) # 帧率的设置在这里，通过设置每几帧丢弃（or取?）一帧来达到改变帧率的目的。
+
 
 class Plumber():
     task_list = []
@@ -70,6 +78,43 @@ class Plumber():
         t = threading.Thread(target=self.run, args=())
         t.start()
 
+    def tee_sink_probe(self, pad, info, u_data):
+        # 获取 Gst.Buffer
+        buffer = info.get_buffer()
+        timestamp = buffer.pts / Gst.SECOND
+        # print(f"======={u_data}:======={timestamp}")
+
+        # Create dummy owner object to keep memory for the image array alive
+        owner = None
+        # Getting Image data using nvbufsurface
+        # the input should be address of buffer and batch_id
+        # Retrieve dtype, shape of the array, strides, pointer to the GPU buffer, and size of the allocated memory
+        data_type, shape, strides, dataptr, size = pyds.get_nvds_buf_surface_gpu(hash(buffer), 0)
+        # dataptr is of type PyCapsule -> Use ctypes to retrieve the pointer as an int to pass into cupy
+        ctypes.pythonapi.PyCapsule_GetPointer.restype = ctypes.c_void_p
+        ctypes.pythonapi.PyCapsule_GetPointer.argtypes = [ctypes.py_object, ctypes.c_char_p]
+        # Get pointer to buffer and create UnownedMemory object from the gpu buffer
+        c_data_ptr = ctypes.pythonapi.PyCapsule_GetPointer(dataptr, None)
+        unownedmem = cp.cuda.UnownedMemory(c_data_ptr, size, owner)
+        # Create MemoryPointer object from unownedmem, at index 0
+        memptr = cp.cuda.MemoryPointer(unownedmem, 0)
+        # Create cupy array to access the image data. This array is in GPU buffer
+        n_frame_gpu = cp.ndarray(shape=shape, dtype=data_type, memptr=memptr, strides=strides, order='C')
+        # Initialize cuda.stream object for stream synchronization
+        stream = cp.cuda.stream.Stream(null=True) # Use null stream to prevent other cuda applications from making illegal memory access of buffer
+        # Modify the red channel to add blue tint to image
+        
+        with stream:
+            n_frame_cpu = n_frame_gpu.get()
+            img_arr = cv2.cvtColor(n_frame_cpu, cv2.COLOR_RGBA2BGRA)
+            frame_cache[u_data].append((img_arr, timestamp))
+            # cv2.imwrite(f"/root/apps/ai_server/output/stream{timestamp}_src.jpg", img_arr)
+        # stream.synchronize()
+
+        return Gst.PadProbeReturn.OK
+
+
+    
     def source_bus_call(self, bus, message, source_pipeline, channel_id):
         t = message.type
         if t == Gst.MessageType.EOS:
@@ -182,6 +227,7 @@ class Plumber():
         if not bin:
             sys.stderr.write(" Unable to create uri decode bin \n")
         nbin.set_property("uri",source_url)
+        # nbin.set_property("uri","rtsp://admin:avcit12345678@172.20.18.252/ch48/main/av_stream")
         # nbin.set_property("uri","rtsp://172.20.38.202:8558/test")
         # nbin.set_property("uri","file:///opt/nvidia/deepstream/deepstream-6.2/samples/streams/sample_1080p_h264.mp4")
         source_pipeline.add(nbin)
@@ -203,7 +249,10 @@ class Plumber():
         source_pipeline.add(filter1)
 
         tee = Gst.ElementFactory.make("tee", f"tee_{source_id}")
-        source_pipeline.add(tee) # 特别注意这里，因为tee已经需要放在bin的外部了，所以这里是添加到pipeline里边而不是nbin
+        source_pipeline.add(tee) 
+
+        tee_sinkpad = tee.get_static_pad("sink")
+        tee_sinkpad.add_probe(Gst.PadProbeType.BUFFER, self.tee_sink_probe, source_id)
 
         nbin.connect("pad-added", on_pad_added, nvvideoconvert)
         nbin.connect("child-added", decodebin_child_added, source_id)
@@ -222,10 +271,7 @@ class Plumber():
                 dev_id = args[1]
                 root = args[2]
                 if service_id == 0:
-                    server = PCNServer(service_id, dev_id, root, self.logging, self.perf_data)
-                    self.infer_server_dict[service_id] = server
-
-                    
+                    pass                    
                 elif service_id == 1:
                     pass
                 elif service_id == 2:
@@ -246,13 +292,9 @@ class Plumber():
                     pass
                 elif service_id == 10:
                     pass
-                elif service_id == 11:
+                elif int(service_id) in [11,12,13]:
                     server = PCNServer(service_id, dev_id, root, self.logging, self.perf_data)
                     self.infer_server_dict[service_id] = server
-                elif service_id == 12:
-                    pass
-                elif service_id == 13:
-                    pass
                 elif service_id == 14:
                     pass
                 elif service_id == 15:
@@ -446,7 +488,7 @@ class Plumber():
             try:
                 # ===============================================================
                 server = self.infer_server_dict[service_id]
-                server.bind(service_id, channel_id, channel_name, config)
+                server.bind(service_id, channel_id, channel_name, config ,frame_cache)
 
                 infer_pipe = server.pipeline
                 # server.bind(channel_id, service_id) 

@@ -33,5 +33,6 @@ class BaseServer():
         
         with stream:
             n_frame_cpu = n_frame_gpu.get()
+        # stream.synchronize()
         return n_frame_cpu
 
